@@ -3,17 +3,19 @@
 Usage: python pipeline.py <folder containing e10.csv and stations.csv>
 
 Steps
-1. Prices: drop pre-2026 dates, exact duplicates, and prices outside 0.75x-1.40x
-   that day's national median (catches prices typed in pounds, 999.9 placeholders).
-2. Stations: normalise brands, fix coordinates (flipped longitude signs, points
-   far from their postcode district), derive postcode district and area.
-3. Daily panel: each station's last price of the day, carried forward until its
-   next report (for at most 30 days), so a station that did not re-report still
-   counts. Medians are taken across stations, not across raw rows.
-4. Write data/series.json, data/stations.json and data/findings.json.
+1. Prices: drop pre-2026 dates, keep one report where a forecourt has two at the
+   same timestamp, and drop prices outside 0.75x-1.40x that day's national median
+   (prices typed in pounds, 999.9 placeholders).
+2. Stations: normalise brands, check every forecourt's coordinates against its
+   own postcode (postcodes.io, cached in data/postcode_cache.json) and fix
+   flipped longitudes or misplaced points.
+3. Daily panel: each forecourt's last price of the day, carried forward until its
+   next report (for at most 30 days). Averages are taken across forecourts per day.
+4. Snapshot at 1 October, robustness checks, then data/*.json and index.html.
 """
 import json
 import sys
+import urllib.request
 from pathlib import Path
 
 import duckdb
@@ -21,13 +23,18 @@ import numpy as np
 import pandas as pd
 
 SRC = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(".")
-OUT = Path(__file__).parent / "data"
+HERE = Path(__file__).parent
+OUT = HERE / "data"
 OUT.mkdir(exist_ok=True)
 
-START, END = "2026-02-01", "2026-10-01"   # national coverage is near-complete from 1 Feb
+START, END = "2026-02-01", "2026-10-01"   # most forecourts joined the scheme in the last week of January
 CARRY_DAYS = 30
+FRESH_DAYS = 7                             # the tool's "cheapest" line only uses prices this recent
+RIVAL_DAYS = 14                            # the local-gap statistic ignores prices older than this
 TANK_LITRES = 55                           # RAC's standard family-car tank
 LOCAL_KM = 3 * 1.609                       # "within three miles"
+RAC = {"2026-03-01": 132.83, "2026-03-31": 152.83}   # RAC Fuel Watch, unleaded (media.rac.co.uk, 2 Apr 2026)
+RAC_RECORD_2022 = 191.43                   # end of June 2022, same RAC release
 
 AREA_NAMES = {
     "AB": "Aberdeen", "AL": "St Albans", "B": "Birmingham", "BA": "Bath", "BB": "Blackburn", "BD": "Bradford",
@@ -55,6 +62,9 @@ AREA_NAMES = {
     "W": "West London", "WA": "Warrington", "WC": "Central London", "WD": "Watford", "WF": "Wakefield",
     "WN": "Wigan", "WR": "Worcester", "WS": "Walsall", "WV": "Wolverhampton", "YO": "York", "ZE": "Shetland",
 }
+# brands whose operators add a site name ("SHELL ABRIDGE", "BP ROCHFORD"); Asda Express stays separate
+MAJORS = ["APPLEGREEN", "BP", "CIRCLE K", "ESSO", "GULF", "JET", "MAXOL", "MORRISONS", "MURCO",
+          "SAINSBURY'S", "SHELL", "TESCO", "TEXACO", "VALERO"]
 
 con = duckdb.connect()
 con.execute(f"create table raw as select * from read_csv_auto('{(SRC / 'e10.csv').as_posix()}')")
@@ -66,7 +76,7 @@ con.execute("""
 create table e0 as
 select distinct on (site_id, datetime) site_id, price, date, datetime
 from raw where date >= date '2026-01-01'
-order by site_id, datetime""")
+order by site_id, datetime, price""")
 con.execute("""
 create table daymed as
 select date, median(price) m from e0 where price between 50 and 400 group by 1""")
@@ -78,8 +88,9 @@ where price between 0.75 * m and 1.40 * m""")
 cleaning = {
     "raw_rows": int(q("select count(*) n from raw").n[0]),
     "pre_2026_rows": int(q("select count(*) n from raw where date < date '2026-01-01'").n[0]),
-    "duplicate_rows": int(q("select (select count(*) from raw where date >= date '2026-01-01') - (select count(*) from e0) n").n[0]),
+    "same_timestamp_rows": int(q("select (select count(*) from raw where date >= date '2026-01-01') - (select count(*) from e0) n").n[0]),
     "outlier_rows": int(q("select (select count(*) from e0) - (select count(*) from e1) n").n[0]),
+    "pounds_rows": int(q("select count(*) n from e0 where price < 10").n[0]),
     "clean_rows": int(q("select count(*) n from e1").n[0]),
 }
 
@@ -93,9 +104,11 @@ pc = st["postcode"].fillna("").str.upper().str.replace(r"\s+", "", regex=True)
 st["postcode"] = np.where(pc.str.len() >= 5, pc.str[:-3] + " " + pc.str[-3:], pc)
 st["district"] = np.where(pc.str.len() >= 5, pc.str[:-3], None)
 st["area"] = pc.str.extract(r"^([A-Z]{1,2})")[0]
-st["brand"] = st["brand_name"].fillna("").str.strip().str.upper().replace({"": "UNBRANDED"})
+st["brand"] = st["brand_name"].fillna("").str.strip().str.upper().replace({"": "UNBRANDED", "SAINSBURYS": "SAINSBURY'S"})
 st["members_only"] = (st["brand"].str.contains("COSTCO") | st["trading_name"].fillna("").str.upper().str.contains("COSTCO")).astype(int)
 st.loc[st.brand.str.startswith("COSTCO"), "brand"] = "COSTCO"
+for m in MAJORS:
+    st.loc[st.brand.str.startswith(m + " "), "brand"] = m
 KEEP_CASE = {"ST": "St", "RD": "Rd", "LTD": "Ltd", "DR": "Dr"}
 
 
@@ -125,26 +138,39 @@ def km(lat1, lon1, lat2, lon2):
     return 12742 * np.arcsin(np.sqrt(a))
 
 
+def geocode(postcodes):
+    """Postcode centroids from postcodes.io's bulk endpoint, cached so reruns work offline."""
+    path = OUT / "postcode_cache.json"
+    cache = json.loads(path.read_text()) if path.exists() else {}
+    todo = sorted({p for p in postcodes if p and p not in cache})
+    for i in range(0, len(todo), 100):
+        body = json.dumps({"postcodes": todo[i:i + 100]}).encode()
+        req = urllib.request.Request("https://api.postcodes.io/postcodes", body, {"Content-Type": "application/json"})
+        for r in json.load(urllib.request.urlopen(req, timeout=30))["result"]:
+            res = r["result"]
+            cache[r["query"]] = [res["latitude"], res["longitude"]] if res and res["latitude"] is not None else None
+    path.write_text(json.dumps(cache, separators=(",", ":")))
+    return cache
+
+
+cache = geocode(st.postcode.tolist())
+ref = st.postcode.map(lambda p: cache.get(p) or [np.nan, np.nan])
+st["pc_lat"], st["pc_lon"] = ref.str[0].astype(float), ref.str[1].astype(float)
+d_now = km(st.lat, st.lon, st.pc_lat, st.pc_lon)
+d_flip = km(st.lat, -st.lon, st.pc_lat, st.pc_lon)
+known = st.pc_lat.notna()
+flip = known & (d_now > 5) & (d_flip <= 5)
+move = known & (d_now > 5) & ~flip
 in_uk = lambda la, lo: la.between(49.8, 60.95) & lo.between(-8.7, 1.8)
-ok = in_uk(st.lat, st.lon)
-cent = st[ok].groupby("district")[["lat", "lon"]].median()
-c = st[["district"]].join(cent, on="district", rsuffix="_c")
-d_now = km(st.lat, st.lon, c.lat, c.lon)
-d_flip = km(st.lat, -st.lon, c.lat, c.lon)
 st["coord_fix"] = ""
-flip = (~ok | (d_now > 30)) & (d_flip < 30)
 st.loc[flip, "lon"] = -st.loc[flip, "lon"]
 st.loc[flip, "coord_fix"] = "lon sign flipped"
-bad = ~in_uk(st.lat, st.lon) | ((km(st.lat, st.lon, c.lat, c.lon) > 30) & c.lat.notna())
-use_c = bad & c.lat.notna()
-st.loc[use_c, ["lat", "lon"]] = c.loc[use_c, ["lat", "lon"]].values
-st.loc[use_c, "coord_fix"] = "moved to postcode district centre"
-still = ~in_uk(st.lat, st.lon)
-st.loc[still, ["lat", "lon"]] = np.nan
-st.loc[still, "coord_fix"] = "no usable location"
-cleaning["coords_flipped"] = int(flip.sum())
-cleaning["coords_to_district"] = int(use_c.sum())
-cleaning["coords_dropped"] = int(still.sum())
+st.loc[move, ["lat", "lon"]] = st.loc[move, ["pc_lat", "pc_lon"]].values
+st.loc[move, "coord_fix"] = "moved to its postcode"
+lost = ~known & ~in_uk(st.lat, st.lon)
+st.loc[lost, ["lat", "lon"]] = np.nan
+cleaning.update(coords_flipped=int(flip.sum()), coords_moved=int(move.sum()), coords_dropped=int(lost.sum()),
+                coords_unchecked=int((~known & ~lost).sum()))
 con.register("st_df", st[["site_id", "name", "brand", "motorway", "supermarket", "members_only", "postcode",
                           "district", "area", "lat", "lon"]])
 con.execute("create table st as select * from st_df")
@@ -153,7 +179,7 @@ con.execute("create table st as select * from st_df")
 con.execute("""
 create table eday as
 select site_id, date, arg_max(price, datetime) price from e1 group by 1, 2""")
-con.execute(f"""
+con.execute("""
 create table spans as
 select site_id, date d0, lead(date) over (partition by site_id order by date) d1, price from eday""")
 con.execute(f"""
@@ -173,24 +199,36 @@ select p.d, count(*) n,
 from panel p left join st using (site_id)
 group by 1 order by 1""")
 
+
+def mean_on(day, cap):
+    """Average price on one day with a given carry-forward cap (None = no cap)."""
+    cond = "" if cap is None else f"and date >= date '{day}' - {cap}"
+    return float(q(f"""select avg(price) v from (
+        select site_id, arg_max(price, date) price from eday where date <= date '{day}' {cond} group by 1)""").v[0])
+
+
+matched = q(f"""select avg(b.price - a.price) rise, count(*) n
+from panel a join panel b using (site_id) where a.d = date '{START}' and b.d = date '{END}'""")
+
 # ---------- current snapshot (prices as at 1 Oct) ----------
 snap = q(f"""
 select st.*, p.price, l.last_report
 from panel p join st using (site_id)
 join (select site_id, max(date) last_report from e1 group by 1) l using (site_id)
 where p.d = date '{END}' and st.lat is not null""")
+snap["age"] = (pd.Timestamp(END) - pd.to_datetime(snap.last_report)).dt.days
 
-# local spread: cheapest station within three miles of each forecourt
-la, lo, pr = snap.lat.values, snap.lon.values, snap.price.values
-local_min = np.empty(len(snap)); local_n = np.empty(len(snap), int)
-for i in range(0, len(snap), 500):
+# local spread: is there a cheaper forecourt within three miles? Fresh prices only, Costco excluded
+pub = snap[(snap.members_only == 0) & (snap.age <= RIVAL_DAYS)].reset_index(drop=True)
+la, lo, pr = pub.lat.values, pub.lon.values, pub.price.values
+local_min = np.empty(len(pub)); local_n = np.empty(len(pub), int)
+for i in range(0, len(pub), 500):
     dd = km(la[i:i + 500, None], lo[i:i + 500, None], la[None, :], lo[None, :])
     near = dd <= LOCAL_KM
     local_min[i:i + 500] = np.where(near, pr[None, :], np.inf).min(axis=1)
     local_n[i:i + 500] = near.sum(axis=1) - 1
-snap["local_gap"] = snap.price - local_min
+gap = pr - local_min
 has_rival = local_n > 0
-gap = snap.local_gap[has_rival]
 
 s = series.set_index("d")
 day = lambda x: s.loc[pd.Timestamp(x)]
@@ -202,97 +240,106 @@ areas["name"] = areas.index.map(AREA_NAMES)
 gb_road = road[road.area != "BT"]
 brands = (gb_road.groupby("brand").agg(n=("price", "size"), mean=("price", "mean"))
           .query("n >= 80").sort_values("mean"))
-brands.loc["MOTORWAY SERVICES"] = [int((snap.motorway == 1).sum()), float(snap[snap.motorway == 1].price.mean())]
 brands["vs_uk"] = brands["mean"] - uk_now
 spring = s.loc["2026-03-01":"2026-06-30", "mean"]
 summer = s.loc["2026-05-01":"2026-08-15", "mean"]
 monthly = s["mean"].resample("MS").mean()
+falls = s["mean"].diff()
+last_fall = falls[falls < 0].index.max()
 
 findings = {
     "cleaning": cleaning,
     "as_at": END,
     "stations_now": int(len(snap)),
+    "n_start": int(day(START).n), "n_end": int(day(END).n),
     "uk_start": float(day(START)["mean"]), "uk_now": uk_now,
     "rise_p": uk_now - float(day(START)["mean"]),
     "rise_pct": uk_now / float(day(START)["mean"]) - 1,
+    "matched_rise": float(matched.rise[0]), "matched_n": int(matched.n[0]),
+    "cap_sensitivity": {str(c): round(mean_on(END, c), 2) for c in (7, 14, 30, None)},
     "mean_1mar": float(day("2026-03-01")["mean"]), "mean_31mar": float(day("2026-03-31")["mean"]),
+    "rac": RAC, "rac_record_2022": RAC_RECORD_2022,
     "spring_peak": float(spring.max()), "spring_peak_date": str(spring.idxmax().date()),
     "summer_low": float(summer.min()), "summer_low_date": str(summer.idxmin().date()),
+    "last_daily_fall": str(last_fall.date()), "days_without_fall": int((pd.Timestamp(END) - last_fall).days),
+    "week_change": uk_now - float(day("2026-09-24")["mean"]),
     "tank_start": float(day(START)["mean"]) * TANK_LITRES / 100, "tank_now": uk_now * TANK_LITRES / 100,
-    "sm_now": float(day(END).sm), "other_now": float(day(END).other), "mw_now": float(day(END).mw),
-    "sm_start": float(day(START).sm), "other_start": float(day(START).other),
-    "p10_now": float(day(END).p10), "p90_now": float(day(END).p90),
-    "share_with_rival": float(has_rival.mean()),
-    "local_gap_median": float(gap.median()), "share_gap_5p": float((gap >= 5).mean()),
-    "share_gap_10p": float((gap >= 10).mean()),
-    "ni_now": float(road[road.area == "BT"].price.mean()), "gb_road_now": float(gb_road.price.mean()),
-    "cheapest_areas": areas.head(6).round(1).reset_index().to_dict("records"),
-    "dearest_areas": areas.tail(6).round(1).reset_index().to_dict("records"),
-    "brands": brands.round(2).reset_index().rename(columns={"index": "brand"}).to_dict("records"),
-    "monthly": {k.strftime("%Y-%m"): round(v, 1) for k, v in monthly.items()},
     "mw_median": float(snap[snap.motorway == 1].price.median()),
     "road_median": float(road.price.median()),
-    "cheapest_station": snap.nsmallest(1, "price")[["name", "brand", "postcode", "price"]].to_dict("records"),
-    "dearest_station": snap.nlargest(1, "price")[["name", "brand", "postcode", "price"]].to_dict("records"),
+    "ni_now": float(road[road.area == "BT"].price.mean()), "gb_road_now": float(gb_road.price.mean()),
+    "share_stale_7d": float((snap.age > FRESH_DAYS).mean()),
+    "local_base": int(len(pub)),
+    "share_gap_5p": float(((gap >= 5) & has_rival).mean()),
+    "local_gap_median": float(np.median(gap[has_rival])),
+    "cheapest_areas": areas.head(6).round(1).reset_index().to_dict("records"),
+    "dearest_areas": areas.tail(6).round(1).reset_index().to_dict("records"),
+    "brands": brands.round(2).reset_index().to_dict("records"),
+    "monthly": {k.strftime("%Y-%m"): round(v, 1) for k, v in monthly.items()},
 }
 
-# ---------- outputs ----------
+# ---------- 4. outputs ----------
 series_out = {
     "d": [x.strftime("%Y-%m-%d") for x in series.d],
-    **{k: [round(v, 1) for v in series[k]] for k in ["mean", "p10", "p90", "sm", "other", "mw"]},
-    "n": series.n.tolist(),
+    **{k: [round(v, 1) for v in series[k]] for k in ["mean", "p10", "p90"]},
 }
 brand_list = sorted(snap.brand.unique())
 bix = {b: i for i, b in enumerate(brand_list)}
 stations_out = {
     "brands": brand_list,
-    "cols": ["lat", "lon", "price_x10", "brand", "name", "postcode", "flags", "last_report"],
+    "cols": ["lat", "lon", "price_x10", "brand", "name", "postcode", "flags", "age_days"],
     "rows": [[round(r.lat, 4), round(r.lon, 4), int(round(r.price * 10)), bix[r.brand], r.name,
-              r.postcode, int(r.supermarket) + 2 * int(r.motorway) + 4 * int(r.members_only), r.last_report.strftime("%m-%d")]
+              r.postcode, int(r.supermarket) + 2 * int(r.motorway) + 4 * int(r.members_only), int(r.age)]
              for r in snap.itertuples()],
 }
 districts = {k: [round(v.lat, 3), round(v.lon, 3)] for k, v in
-             st.dropna(subset=["lat"]).groupby("district")[["lat", "lon"]].median().iterrows()}
-(OUT / "districts.json").write_text(json.dumps(districts, separators=(",", ":")))
-(OUT / "series.json").write_text(json.dumps(series_out, separators=(",", ":")))
-(OUT / "stations.json").write_text(json.dumps(stations_out, separators=(",", ":"), ensure_ascii=False))
-(OUT / "findings.json").write_text(json.dumps(findings, indent=1, default=str))
+             st.dropna(subset=["lat"]).groupby("district")[["lat", "lon"]].mean().iterrows()}
+for name, obj in [("districts", districts), ("series", series_out), ("stations", stations_out)]:
+    (OUT / f"{name}.json").write_text(json.dumps(obj, separators=(",", ":"), ensure_ascii=False), encoding="utf-8")
+(OUT / "findings.json").write_text(json.dumps(findings, indent=1, default=str), encoding="utf-8")
 
 # ---------- 5. render the page: one self-contained HTML file ----------
-RAC_1MAR = 132.83   # RAC Fuel Watch, unleaded, 1 March 2026 (media.rac.co.uk, 2 Apr 2026)
 f = findings
 gb_areas = [a for a in f["cheapest_areas"] if a["area"] != "BT"]
 mw_gap = f["mw_median"] - f["road_median"]
-brand_spread = f["brands"][[b["brand"] for b in f["brands"]].index("SHELL")]["mean"] - f["brands"][0]["mean"]
+bmean = {b["brand"]: b["mean"] for b in f["brands"]}
+brand_spread = bmean["SHELL"] - (bmean["TESCO"] + bmean["ASDA"]) / 2
 cl = f["cleaning"]
-f["as_at_long"] = pd.Timestamp(END).strftime("%-d %B %Y") if sys.platform != "win32" else pd.Timestamp(END).strftime("%#d %B %Y")
+as_at = pd.Timestamp(END)
+f["as_at_long"] = f"{as_at.day} {as_at:%B %Y}"
 text = {
     "rise_p": f"{f['rise_p']:.0f}",
-    "tank_now": f"£{f['tank_now']:.2f}", "tank_start": f"£{f['tank_start']:.2f}",
-    "tank_rise": f"£{f['tank_now'] - f['tank_start']:.2f}",
+    "tank_now": f"£{f['tank_now']:.0f}", "tank_start": f"£{f['tank_start']:.0f}",
+    "tank_rise": f"£{f['tank_now'] - f['tank_start']:.0f}",
     "stations_now": f"{f['stations_now']:,}", "as_at_long": f["as_at_long"],
     "uk_now": f"{f['uk_now']:.1f}", "uk_start": f"{f['uk_start']:.1f}",
     "mw_gap": f"{mw_gap:.0f}", "mw_median": f"{f['mw_median']:.1f}", "mw_tank": f"£{mw_gap * TANK_LITRES / 100:.0f}",
-    "march_rise": f"{f['mean_31mar'] - f['mean_1mar']:.1f}",
-    "mean_1mar": f"{f['mean_1mar']:.1f}", "mean_31mar": f"{f['mean_31mar']:.1f}",
-    "rac_diff": f"{abs(f['mean_1mar'] - RAC_1MAR):.1f}", "rac_1mar": f"{RAC_1MAR:.2f}",
     "spring_peak": f"{f['spring_peak']:.1f}", "summer_low": f"{f['summer_low']:.1f}",
+    "above_peak": f"{f['uk_now'] - f['spring_peak']:.0f}",
     "second_rise": f"{f['uk_now'] - f['summer_low']:.1f}",
-    "brand_spread": f"{brand_spread:.1f}", "brand_tank": f"£{brand_spread * TANK_LITRES / 100:.2f}",
+    "record_gap": f"{RAC_RECORD_2022 - f['uk_now']:.0f}",
+    "brand_spread": f"{brand_spread:.0f}", "brand_tank": f"£{brand_spread * TANK_LITRES / 100:.0f}",
     "ni_now": f"{f['ni_now']:.1f}", "ni_gap": f"{f['gb_road_now'] - f['ni_now']:.0f}",
     "cheap_area": gb_areas[0]["name"], "cheap_area_p": f"{gb_areas[0]['mean']:.1f}",
     "dear_area": f["dearest_areas"][-1]["name"], "dear_area_p": f"{f['dearest_areas'][-1]['mean']:.1f}",
     "dropped_rows": f"{cl['raw_rows'] - cl['clean_rows']:,}", "raw_rows": f"{cl['raw_rows']:,}",
-    "coords_fixed": f"{cl['coords_flipped'] + cl['coords_to_district']:,}",
+    "coords_fixed": f"{cl['coords_flipped'] + cl['coords_moved']:,}",
+    "mean_1mar": f"{f['mean_1mar']:.1f}", "mean_31mar": f"{f['mean_31mar']:.1f}",
+    "rac_1mar": f"{RAC['2026-03-01']:.1f}", "rac_31mar": f"{RAC['2026-03-31']:.1f}",
+    "matched_rise": f"{f['matched_rise']:.0f}", "matched_n": f"{f['matched_n']:,}",
+    "cap_lo": f"{min(f['cap_sensitivity'].values()):.1f}", "cap_hi": f"{max(f['cap_sensitivity'].values()):.1f}",
+    "fresh_days": str(FRESH_DAYS),
+    "last_fall": f"{pd.Timestamp(f['last_daily_fall']).day} {pd.Timestamp(f['last_daily_fall']):%B}",
 }
-html = (Path(__file__).parent / "src" / "template.html").read_text(encoding="utf-8")
+html = (HERE / "src" / "template.html").read_text(encoding="utf-8")
 for k, v in text.items():
     html = html.replace("{{" + k + "}}", v)
 assert "{{" not in html, "unfilled placeholder"
-for name, path in [("SERIES", "series.json"), ("STATIONS", "stations.json"),
-                   ("DISTRICTS", "districts.json"), ("FINDINGS", None)]:
-    payload = json.dumps(f, default=str) if path is None else (OUT / path).read_text(encoding="utf-8")
-    html = html.replace(f"/*__{name}__*/null", payload.replace("</", r"<\/"))
-(Path(__file__).parent / "index.html").write_text(html, encoding="utf-8", newline="\n")
+for name, payload in [("series", series_out), ("stations", stations_out), ("districts", districts),
+                      ("findings", f)]:
+    blob = json.dumps(payload, default=str, ensure_ascii=False, separators=(",", ":")).replace("</", r"<\/")
+    html = html.replace(f"<!--__{name.upper()}__-->", blob)
+(HERE / "index.html").write_text(html, encoding="utf-8", newline="\n")
+print(json.dumps({k: v for k, v in f.items() if k not in ("brands", "monthly", "cheapest_areas", "dearest_areas")},
+                 indent=1, default=str))
 print(json.dumps(text, indent=1, ensure_ascii=False))
 print(f"index.html: {len(html.encode()) / 1024:.0f} KB")

@@ -1,8 +1,10 @@
 # Petrol Price Tracker
 
-A mobile-first interactive built from the government's [Fuel Finder](https://www.gov.uk/government/collections/fuel-finder) data: how far unleaded (E10) prices have risen since February 2026, a postcode tool that finds the cheapest forecourts near you, and a comparison by brand and region.
+A mobile-first interactive built from the government's [Fuel Finder](https://www.gov.uk/government/collections/fuel-finder) data. It shows how far unleaded (E10) prices have risen since February 2026, includes a postcode tool that finds the cheapest forecourts nearby, and compares prices by brand and region.
 
-`index.html` is the finished page. It is a single self-contained file (data inlined, D3 from cdnjs), so it opens straight from disk or from GitHub Pages.
+**Live page:** https://adakin97.github.io/fuel-finder/
+
+`index.html` is the finished page. It is a single self-contained file: the data is inlined as JSON blocks and D3 comes from cdnjs with an integrity hash. It opens straight from disk or from GitHub Pages.
 
 ## Run it
 
@@ -11,35 +13,35 @@ pip install duckdb pandas numpy
 python pipeline.py path/to/folder-with-e10.csv-and-stations.csv
 ```
 
-This writes `data/*.json` and rebuilds `index.html` from `src/template.html`. It takes under ten seconds on the full extract (347,612 price records, 8,148 stations).
+This writes `data/*.json` and rebuilds `index.html` from `src/template.html`. On the full extract (347,612 price records, 8,148 stations) it takes about ten seconds once the postcode cache exists.
 
 ## What the pipeline does
 
-1. **Prices.** Drops four pre-2026 dates (1964, 2006, 2020, 2025), 32 exact duplicates and 127 prices outside 0.75x to 1.40x of that day's national median. That band catches prices typed in pounds (1.5, 1.6), 999.9 placeholders and a 290p typo, while keeping real island prices of 200p to 210p.
-2. **Stations.** Normalises brand spelling, flips 92 longitudes entered without their minus sign, moves 53 points that were more than 30 km from their postcode district to the district centre, and drops 12 that could not be placed. Costco sites are flagged as members only.
+1. **Prices.** Drops four pre-2026 dates and keeps one report where a forecourt has two at the same timestamp. Also drops prices outside 0.75x to 1.40x of that day's national median, which catches prices entered in pounds rather than pence, 999.9 placeholders and two prices of about 290p.
+2. **Stations.** Normalises brand spelling and merges site-named variants ("SHELL ABRIDGE" counts as Shell). Checks every forecourt's coordinates against its own postcode via the postcodes.io bulk endpoint, cached in `data/postcode_cache.json`. 103 longitudes had lost their minus sign and 64 points were more than 5 km from their postcode; both are corrected. Costco sites are flagged as members only.
 3. **Daily panel.** Each forecourt's last price of the day is carried forward until its next report, for at most 30 days. Averages are taken across forecourts per day, not across raw rows. A plain average of rows would over-weight the forecourts that change price most often.
-4. **Snapshot.** Prices as at 1 October 2026 for the 7,765 forecourts that reported in the previous 30 days, plus the cheapest rival within three miles of each one.
+4. **Snapshot.** Prices as at 1 October 2026 for the 7,774 forecourts that reported in the previous 30 days, with each price's age. A forecourt only reports when its price changes, and prices were rising, so an old price looks cheap. The tool's "cheapest near you" line therefore uses only prices from the last seven days, and older prices are marked.
 
 ## Checks
 
-- The pipeline's average for 1 March (132.94p) is 0.1p from the RAC's published 132.83p.
-- An independent pandas recomputation of the 1 October average (last price per forecourt, no carry-forward logic) gives 174.68p, the same as the pipeline.
+- The RAC published 132.83p for 1 March and 152.83p for 31 March. Our averages are 132.94p and 153.66p.
+- Most forecourts joined in the last week of January. On the 4,688 forecourts with a price on both 1 February and 1 October, the rise is 43.0p; the headline uses 42p.
+- The 1 October average is 174.23p with no carry-forward limit and 174.83p with a seven-day limit. The page uses the 30-day figure, 174.68p.
 - Station prices on the page were spot-checked against the raw CSV.
 
 ## Mobile
 
-- One column, 640px maximum, system fonts (no web-font download), with charts that redraw to the container width.
-- Every interaction works by tap: crosshair on the line chart, per-bar tooltips, and nearest-dot lookup on the map (a d3 quadtree).
-- The map is drawn to a canvas, so 7,765 dots do not become 7,765 DOM nodes.
-- The postcode input is 18px, so iOS does not zoom when it is tapped. Tap targets are at least 44px.
+- One column, 640px maximum, system fonts and no web-font download. Charts redraw to the container width, deferred with `requestAnimationFrame`.
+- Every interaction works by tap: the crosshair on the line chart, the per-bar tooltips and nearest-dot lookup on the map (a d3 quadtree). On touch, a tooltip stays up until the next tap elsewhere.
+- The map is drawn to a canvas, so 7,774 dots do not become 7,774 DOM nodes.
+- The postcode tool and all three tables work without D3. Postcode lookups time out after five seconds. If postcodes.io is unreachable, outward codes fall back to district centres built from the geocoded stations.
 - Light and dark themes follow the device setting.
-- Postcode lookup uses postcodes.io. Most outward codes (for example "LS1") also work offline, from district centres derived from the station data.
-- Page weight is 236 KB gzipped plus D3 (90 KB gzipped). In production the station list would be split out and lazy-loaded, or served from an API that is refreshed daily.
+- Page weight is about 230 KB gzipped plus D3 (90 KB gzipped). In production the station list would be lazy-loaded or served from an API refreshed daily.
 
 ## Data
 
-Fuel Finder, Department for Energy Security and Net Zero, Open Government Licence v3.0. The raw CSVs are not included in this repository.
+Fuel Finder, Department for Energy Security and Net Zero, Open Government Licence v3.0. Postcode locations from postcodes.io (ONS data, Open Government Licence). The raw CSVs are not included in this repository.
 
 ## AI use
 
-Built with Claude Code (Anthropic, Claude Opus 5.5) at my direction. It profiled and cleaned the data, wrote `pipeline.py` and the front end, tested the page in a headless browser and drafted this README. The accompanying commentary has the full breakdown.
+Built with Claude Code (Anthropic, Claude Opus 5.5) at my direction. It wrote all of the code, the page copy and this README. A second set of independent AI reviewers then checked the build. They found a misleading news line, a coordinate fix that moved correctly placed forecourts, stale prices in the tool and touch tooltips that vanished; all were fixed. The submission's commentary has the full breakdown.

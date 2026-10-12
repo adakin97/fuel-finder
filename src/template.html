@@ -18,6 +18,8 @@
   --border: rgba(11,11,11,0.10);
   --accent: #2a78d6;
   --accent-ink: #1c5cab;
+  --btn: #1c5cab;
+  --warn-ink: #8a5300;
   --cheap: #2a78d6;
   --dear: #e34948;
   --d-cheap-2: #1c5cab;
@@ -30,23 +32,10 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --page: #0d0d0d;
-    --surface: #1a1a19;
-    --ink: #ffffff;
-    --ink-2: #c3c2b7;
-    --muted: #9a988f;
-    --grid: #2c2c2a;
-    --axis: #383835;
-    --border: rgba(255,255,255,0.10);
-    --accent: #3987e5;
-    --accent-ink: #86b6ef;
-    --cheap: #3987e5;
-    --dear: #e66767;
-    --d-cheap-2: #86b6ef;
-    --d-cheap-1: #3987e5;
-    --d-mid: #5a5955;
-    --d-dear-1: #e66767;
-    --d-dear-2: #f2a8a0;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #9a988f;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10); --accent: #3987e5;
+    --accent-ink: #86b6ef; --btn: #256abf; --warn-ink: #f0b44c; --cheap: #3987e5; --dear: #e66767;
+    --d-cheap-2: #86b6ef; --d-cheap-1: #184f95; --d-mid: #5a5955; --d-dear-1: #9a2427; --d-dear-2: #f2a8a0;
     --chip: #2c2c2a;
   }
 }
@@ -54,8 +43,9 @@
   color-scheme: dark;
   --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #9a988f;
   --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10); --accent: #3987e5;
-  --accent-ink: #86b6ef; --cheap: #3987e5; --dear: #e66767; --d-cheap-2: #86b6ef;
-  --d-cheap-1: #3987e5; --d-mid: #5a5955; --d-dear-1: #e66767; --d-dear-2: #f2a8a0; --chip: #2c2c2a;
+  --accent-ink: #86b6ef; --btn: #256abf; --warn-ink: #f0b44c; --cheap: #3987e5; --dear: #e66767;
+  --d-cheap-2: #86b6ef; --d-cheap-1: #184f95; --d-mid: #5a5955; --d-dear-1: #9a2427; --d-dear-2: #f2a8a0;
+  --chip: #2c2c2a;
 }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
@@ -81,14 +71,14 @@ p { margin: 0 0 14px; }
 .tile .value { font-size: 26px; font-weight: 650; line-height: 1.15; margin: 0 0 2px; }
 .tile .note { font-size: 13px; color: var(--muted); margin: 0; }
 .chart { position: relative; }
-.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart svg { display: block; width: 100%; height: auto; }
 .axis text, .lbl { font-size: 12px; fill: var(--muted); font-variant-numeric: tabular-nums; }
 .axis path, .axis line { stroke: var(--axis); }
 .gridline { stroke: var(--grid); stroke-width: 1; }
 .annot { font-size: 12.5px; fill: var(--ink-2); }
 .annot-strong { font-size: 13px; font-weight: 650; fill: var(--ink); }
 .tip {
-  position: absolute; pointer-events: none; z-index: 5; min-width: 120px;
+  position: absolute; pointer-events: none; z-index: 5; min-width: 120px; max-width: 260px;
   background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0,0,0,.12); padding: 8px 10px; font-size: 13px; line-height: 1.35;
   opacity: 0; transition: opacity .1s;
@@ -96,6 +86,8 @@ p { margin: 0 0 14px; }
 .tip .v { font-size: 16px; font-weight: 650; color: var(--ink); }
 .tip .k { color: var(--ink-2); }
 .tip .key { display: inline-block; width: 12px; height: 2px; vertical-align: middle; margin-right: 6px; }
+.ring { position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px; border: 2px solid var(--ink); border-radius: 50%; pointer-events: none; display: none; }
+.nochart { font-size: 14px; color: var(--muted); margin: 0; }
 details { margin-top: 10px; font-size: 15px; }
 summary { cursor: pointer; color: var(--accent-ink); font-weight: 600; padding: 6px 0; }
 table { width: 100%; border-collapse: collapse; font-size: 15px; margin-top: 6px; }
@@ -110,14 +102,16 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .tool form { display: flex; gap: 8px; }
 .tool input {
   flex: 1; min-width: 0; font-size: 18px; padding: 12px 14px; border-radius: 10px;
-  border: 1px solid var(--axis); background: var(--page); color: var(--ink); text-transform: uppercase;
+  border: 1px solid var(--muted); background: var(--page); color: var(--ink); text-transform: uppercase;
 }
 .tool input::placeholder { text-transform: none; color: var(--muted); }
 .btn {
   font: 600 16px/1 system-ui, -apple-system, "Segoe UI", sans-serif; border-radius: 10px; padding: 0 16px;
-  min-height: 48px; border: 0; background: var(--accent); color: #fff; cursor: pointer;
+  min-height: 48px; border: 0; background: var(--btn); color: #fff; cursor: pointer;
 }
+.btn:disabled { opacity: .6; cursor: progress; }
 .btn.ghost { background: transparent; color: var(--accent-ink); padding: 0; min-height: 44px; }
+.btn:focus-visible, .seg button:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .status { font-size: 14px; color: var(--muted); margin: 10px 0 0; min-height: 1.4em; }
 .summary { margin: 14px 0 6px; font-size: 17px; }
 .summary strong { font-weight: 650; }
@@ -133,6 +127,7 @@ ol.stations li { display: grid; grid-template-columns: 78px 1fr; gap: 2px 12px; 
 .st-diff { font-size: 12.5px; color: var(--muted); }
 .st-name { font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
 .st-meta { font-size: 13.5px; color: var(--ink-2); }
+.st-meta .stale { color: var(--warn-ink); }
 .badge { display: inline-block; font-size: 11.5px; font-weight: 600; padding: 2px 7px; border-radius: 999px; background: var(--chip); color: var(--ink-2); margin-right: 4px; }
 .best { color: var(--accent-ink); }
 .map-wrap { position: relative; }
@@ -141,6 +136,7 @@ canvas { display: block; width: 100%; touch-action: pan-y; }
 .method h2 { color: var(--ink); }
 .method li { margin-bottom: 8px; }
 .source { font-size: 13px; color: var(--muted); margin-top: 8px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 @media (min-width: 600px) {
   h1 { font-size: 38px; }
   .wrap { padding-top: 40px; }
@@ -152,8 +148,8 @@ canvas { display: block; width: 100%; touch-action: pan-y; }
 <main class="wrap">
   <header>
     <p class="kicker">Fuel prices</p>
-    <h1>Petrol is up {{rise_p}}p a litre since February. Here is where to find it cheaper</h1>
-    <p class="standfirst">Filling a family car with unleaded now costs {{tank_now}}, about {{tank_rise}} more than at the start of February. Prices jumped by a record amount in March and have been climbing again since July.</p>
+    <h1>Petrol is up {{rise_p}}p a litre since February</h1>
+    <p class="standfirst">Filling a family car with unleaded now costs about {{tank_now}}, {{tank_rise}} more than at the start of February, and prices are {{above_peak}}p above their spring peak. Search your postcode below for the cheapest petrol near you.</p>
     <p class="meta">Standard unleaded (E10) prices from {{stations_now}} forecourts, to {{as_at_long}}</p>
   </header>
 
@@ -163,27 +159,18 @@ canvas { display: block; width: 100%; touch-action: pan-y; }
     <p class="delta"><strong>Up {{tank_rise}}</strong> from {{tank_start}} on 1 February</p>
   </section>
   <div class="tiles">
-    <div class="tile card"><p class="label">Average litre</p><p class="value">{{uk_now}}p</p><p class="note">from {{uk_start}}p on 1 Feb</p></div>
-    <div class="tile card"><p class="label">Motorway services</p><p class="value">+{{mw_gap}}p</p><p class="note">a litre over a typical forecourt</p></div>
+    <div class="tile card"><p class="label">Price of a litre</p><p class="value">{{uk_now}}p</p><p class="note">from {{uk_start}}p on 1 February</p></div>
+    <div class="tile card"><p class="label">Motorway services</p><p class="value">+{{mw_gap}}p</p><p class="note">a litre more than a typical forecourt</p></div>
   </div>
-
-  <h2>A record rise in March, then a second climb</h2>
-  <p class="sub">Average UK price of a litre of E10 unleaded, pence. The shaded band covers the middle 80 per cent of forecourts</p>
-  <div class="chart card" id="line-chart"></div>
-  <details>
-    <summary>Monthly averages</summary>
-    <table id="monthly-table"><thead><tr><th>Month</th><th class="num">Average, p/litre</th></tr></thead><tbody></tbody></table>
-  </details>
-  <p style="margin-top:16px">The average litre rose by {{march_rise}}p in March, from {{mean_1mar}}p to {{mean_31mar}}p, as war in the Middle East pushed up the price of oil. The RAC called it the biggest monthly increase on record. Prices peaked at {{spring_peak}}p in late May and eased to {{summer_low}}p in early July. Since then they have risen by {{second_rise}}p, more than March's jump, though spread over three months rather than one.</p>
 
   <section class="tool" id="tool">
     <h2>Find cheaper petrol near you</h2>
     <p class="sub">Enter a postcode to see the cheapest forecourts within five miles</p>
     <div class="card">
       <form id="pc-form" autocomplete="on">
-        <label for="pc" class="visually-hidden" style="position:absolute;left:-9999px">Postcode</label>
-        <input id="pc" name="postcode" inputmode="text" autocomplete="postal-code" placeholder="e.g. SW1A 1AA or LS1" maxlength="8" required>
-        <button class="btn" type="submit">Search</button>
+        <label for="pc" class="sr-only">Postcode</label>
+        <input id="pc" name="postcode" inputmode="text" autocomplete="postal-code" placeholder="e.g. LS1 4AP" maxlength="10" required>
+        <button class="btn" id="go" type="submit">Search</button>
       </form>
       <button class="btn ghost" id="geo" type="button">Use my location</button>
       <p class="status" id="status" role="status" aria-live="polite"></p>
@@ -198,14 +185,28 @@ canvas { display: block; width: 100%; touch-action: pan-y; }
     </div>
   </section>
 
-  <h2>Supermarkets are cheapest, Shell and BP dearest</h2>
-  <p class="sub">Average price by brand compared with the UK average of {{uk_now}}p, pence a litre. Great Britain, excluding motorway sites; brands with at least 80 forecourts</p>
+  <h2>A record rise in March, and a second climb since July</h2>
+  <p class="sub">Average UK price of a litre of E10 unleaded, pence. The shaded band covers the middle 80 per cent of forecourts</p>
+  <div class="chart card" id="line-chart"></div>
+  <details>
+    <summary>Monthly averages</summary>
+    <table id="monthly-table"><thead><tr><th>Month</th><th class="num">Average, p a litre</th></tr></thead><tbody></tbody></table>
+  </details>
+  <p style="margin-top:16px">The average litre rose by about 20p in March, which the RAC called the biggest monthly increase on record, as war in the Middle East pushed up the price of oil. Prices peaked at {{spring_peak}}p in late May and eased to {{summer_low}}p in early July. They have risen by {{second_rise}}p since then, and the average has not fallen on any day since {{last_fall}}. Petrol is now {{above_peak}}p above the May peak, though still about {{record_gap}}p below the record set in the summer of 2022.</p>
+
+  <h2>Tesco and Asda are cheapest, Shell is dearest</h2>
+  <p class="sub">Average price by brand against the UK average of {{uk_now}}p, pence a litre. Great Britain, excluding motorway sites; brands with at least 80 forecourts</p>
   <ul class="legend" aria-hidden="true">
     <li><span class="sw" style="background:var(--cheap)"></span>Cheaper than average</li>
     <li><span class="sw" style="background:var(--dear)"></span>Dearer than average</li>
   </ul>
   <div class="chart card" id="brand-chart"></div>
-  <p style="margin-top:16px">The gaps between brands are small, about {{brand_spread}}p a litre between Tesco and Shell, or roughly {{brand_tank}} a tank. Drivers pay most on the motorway. The typical motorway forecourt charges {{mw_median}}p, {{mw_gap}}p above the typical forecourt elsewhere, which adds about {{mw_tank}} to a tank.</p>
+  <details>
+    <summary>Brand averages</summary>
+    <table id="brand-table"><thead><tr><th>Brand</th><th class="num">Forecourts</th><th class="num">Average, p</th><th class="num">vs UK</th></tr></thead><tbody></tbody></table>
+  </details>
+  <p style="margin-top:16px">The gaps between brands are small. Shell is about {{brand_spread}}p a litre dearer than Tesco and Asda, or about {{brand_tank}} a tank.</p>
+  <p>Motorways cost most. The typical motorway forecourt charges {{mw_median}}p, {{mw_gap}}p more than the typical forecourt elsewhere, which adds about {{mw_tank}} to a tank.</p>
 
   <h2>Petrol is {{ni_gap}}p cheaper in Northern Ireland</h2>
   <p class="sub">Every forecourt, coloured by its price against the UK average. Tap a dot for details</p>
@@ -216,8 +217,8 @@ canvas { display: block; width: 100%; touch-action: pan-y; }
     <li><span class="sw dot" style="background:var(--d-dear-1)"></span>2 to 5p dearer</li>
     <li><span class="sw dot" style="background:var(--d-dear-2)"></span>5p+ dearer</li>
   </ul>
-  <div class="map-wrap card" id="map-wrap"><canvas id="map" role="img" aria-label="Map of UK forecourts coloured by petrol price. Northern Ireland is mostly cheaper than average; motorway sites and the Scottish Highlands are mostly dearer."></canvas></div>
-  <p style="margin-top:16px">Petrol in Northern Ireland averages {{ni_now}}p, {{ni_gap}}p less than in Great Britain. On the mainland, the {{cheap_area}} postcode area is cheapest at {{cheap_area_p}}p and {{dear_area}} the dearest at {{dear_area_p}}p.</p>
+  <div class="map-wrap card" id="map-wrap"><canvas id="map" role="img" aria-label="Map of UK forecourts coloured by petrol price. Northern Ireland is mostly cheaper than average; motorway sites and the Scottish Highlands are mostly dearer."></canvas><div class="ring" id="ring"></div></div>
+  <p style="margin-top:16px">Petrol in Northern Ireland averages {{ni_now}}p, {{ni_gap}}p less than in Great Britain. In Great Britain, the {{cheap_area}} postcode area is cheapest at {{cheap_area_p}}p and {{dear_area}} the dearest at {{dear_area_p}}p.</p>
   <details>
     <summary>Cheapest and dearest postcode areas</summary>
     <table id="area-table"><thead><tr><th>Postcode area</th><th class="num">Forecourts</th><th class="num">Average, p</th></tr></thead><tbody></tbody></table>
@@ -226,69 +227,88 @@ canvas { display: block; width: 100%; touch-action: pan-y; }
   <section class="method">
     <h2>How we did this</h2>
     <ul>
-      <li>Prices come from Fuel Finder, the government scheme that has required forecourts to report price changes within 30 minutes since early 2026. This analysis uses standard unleaded (E10) only.</li>
-      <li>Each forecourt's latest price is carried forward day by day until it reports again (for up to 30 days), so averages are taken across forecourts rather than across price updates.</li>
-      <li>We removed {{dropped_rows}} of {{raw_rows}} price records: duplicates, impossible dates and prices that were clearly typing errors, such as 1.5p or 999.9p. {{coords_fixed}} forecourts with misplaced map coordinates were corrected using their postcode.</li>
-      <li>As a check, our average of {{mean_1mar}}p on 1 March is {{rac_diff}}p from the RAC's published figure of {{rac_1mar}}p for that day.</li>
-      <li>A "motorway" site is one flagged as such by its operator. Some of those are on major A-roads, so we use the median price for that comparison. Brand and area comparisons exclude motorway sites.</li>
-      <li>Postcode searches use postcodes.io. Distances are straight-line. The cheapest-near-you result leaves out Costco, which sells only to members. A tank is 55 litres, the RAC's standard for a family car.</li>
+      <li>Prices come from Fuel Finder, the government scheme that requires forecourts to report price changes within 30 minutes. This page uses standard unleaded (E10) only.</li>
+      <li>Each forecourt's latest price is carried forward day by day until it reports again, for up to 30 days, so averages are taken across forecourts rather than across price updates. Changing that window moves the 1 October average between {{cap_lo}}p and {{cap_hi}}p.</li>
+      <li>Most forecourts joined the scheme in late January, so the 1 February figure covers fewer of them. On the {{matched_n}} forecourts with a price on both dates, the rise is {{matched_rise}}p.</li>
+      <li>We removed {{dropped_rows}} of {{raw_rows}} price records: reports dated before 2026, second reports at the same timestamp, and prices that could not be real, such as prices entered in pounds rather than pence and 999.9p placeholders. We checked every forecourt's map position against its postcode and corrected {{coords_fixed}}.</li>
+      <li>As a check, our averages for 1 and 31 March ({{mean_1mar}}p and {{mean_31mar}}p) compare with the RAC's {{rac_1mar}}p and {{rac_31mar}}p.</li>
+      <li>A "motorway" site is one flagged as such by its operator. Some flagged sites are on A-roads, and the median is less affected by them than the average. Brand and area comparisons exclude motorway sites.</li>
+      <li>A forecourt only has to report when its price changes, so some prices are out of date. The cheapest-near-you result uses only prices reported in the last {{fresh_days}} days, and older prices are marked. It also leaves out Costco, which sells only to members; Costco still appears in the list.</li>
+      <li>Postcode searches use postcodes.io. Distances are straight-line. A tank is 55 litres, the RAC's standard for a family car.</li>
     </ul>
-    <p class="source">Source: Fuel Finder, Department for Energy Security and Net Zero, Open Government Licence v3.0; RAC</p>
+    <p class="source">Sources: Fuel Finder, Department for Energy Security and Net Zero (Open Government Licence v3.0); RAC; postcodes.io</p>
   </section>
 </main>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script type="application/json" id="d-series"><!--__SERIES__--></script>
+<script type="application/json" id="d-stations"><!--__STATIONS__--></script>
+<script type="application/json" id="d-districts"><!--__DISTRICTS__--></script>
+<script type="application/json" id="d-findings"><!--__FINDINGS__--></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
 <script>
-const SERIES = /*__SERIES__*/null;
-const STATIONS = /*__STATIONS__*/null;
-const DISTRICTS = /*__DISTRICTS__*/null;
-const F = /*__FINDINGS__*/null;
-
-const UK = F.uk_now, TANK = 55;
+(() => {
+const data = id => JSON.parse(document.getElementById(id).textContent);
+const SERIES = data("d-series"), STATIONS = data("d-stations"), DISTRICTS = data("d-districts"), F = data("d-findings");
+const UK = F.uk_now, TANK = 55, FRESH = 7;
+const AS_AT = new Date(F.as_at + "T12:00:00Z");
+const hasD3 = typeof d3 !== "undefined";
+const byId = id => document.getElementById(id);
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const fmtP = v => v.toFixed(1) + "p";
 const fmtSigned = v => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(1) + "p";
 const fmtGBP = v => "£" + v.toFixed(2);
-const parseDay = d3.utcParse("%Y-%m-%d");
-const fmtDay = d3.utcFormat("%-d %b");
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const LONG_MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const fmtDay = d => d.getUTCDate() + " " + MONTHS[d.getUTCMonth()];
+const daysAgo = n => new Date(AS_AT.getTime() - n * 864e5);
 const BRAND_NAMES = { "EG ON THE MOVE": "EG On The Move", "BP": "BP", "SAINSBURY'S": "Sainsbury's", "ASDA EXPRESS": "Asda Express" };
 const titleCase = s => BRAND_NAMES[s] || s.toLowerCase().replace(/(^|[\s\-'(])([a-z])/g, (m, a, b) => a + b.toUpperCase());
+const MILES = { 5: "five", 10: "10", 20: "20" };
 
+/* ---------- tooltips: hover on mouse, tap on touch (stays until the next tap elsewhere) ---------- */
+const tips = [];
 function makeTip(container) {
-  const tip = document.createElement("div");
-  tip.className = "tip";
-  container.appendChild(tip);
-  return {
+  const el = document.createElement("div");
+  el.className = "tip";
+  container.appendChild(el);
+  const tip = {
+    container,
     show(rows, x, y) {
-      tip.replaceChildren();
+      el.replaceChildren();
       rows.forEach(([cls, text, key]) => {
         const div = document.createElement("div");
         if (key) { const k = document.createElement("span"); k.className = "key"; k.style.background = key; div.appendChild(k); }
         const span = document.createElement("span");
         span.className = cls; span.textContent = text;
         div.appendChild(span);
-        tip.appendChild(div);
+        el.appendChild(div);
       });
-      const cw = container.clientWidth, tw = tip.offsetWidth;
-      tip.style.left = Math.max(4, Math.min(cw - tw - 4, x - tw / 2)) + "px";
-      tip.style.top = Math.max(0, y - tip.offsetHeight - 12) + "px";
-      tip.style.opacity = 1;
+      const cw = container.clientWidth, tw = el.offsetWidth;
+      el.style.left = Math.max(4, Math.min(cw - tw - 4, x - tw / 2)) + "px";
+      el.style.top = Math.max(0, y - el.offsetHeight - 12) + "px";
+      el.style.opacity = 1;
     },
-    hide() { tip.style.opacity = 0; }
+    hide() { el.style.opacity = 0; if (tip.onHide) tip.onHide(); },
+    leave(ev) { if (ev.pointerType === "mouse") tip.hide(); }
   };
+  tips.push(tip);
+  return tip;
 }
+document.addEventListener("pointerdown", ev => tips.forEach(t => { if (!t.container.contains(ev.target)) t.hide(); }));
 
 /* ---------- line chart ---------- */
-const days = SERIES.d.map(parseDay);
 function drawLine() {
-  const el = document.getElementById("line-chart");
+  const el = byId("line-chart");
   el.querySelectorAll("svg,.tip").forEach(n => n.remove());
+  tips.splice(0, tips.length, ...tips.filter(t => t.container !== el));
+  const days = SERIES.d.map(d3.utcParse("%Y-%m-%d"));
   const W = el.clientWidth - 32, H = W < 420 ? 250 : 290;
   const m = { top: 30, right: 46, bottom: 26, left: 38 };
   const x = d3.scaleUtc().domain(d3.extent(days)).range([m.left, W - m.right]);
-  const y = d3.scaleLinear().domain([125, 185]).range([H - m.bottom, m.top]);
+  const lo = Math.floor((d3.min(SERIES.p10) - 2) / 5) * 5, hi = Math.ceil((d3.max(SERIES.p90) + 2) / 5) * 5;
+  const y = d3.scaleLinear().domain([lo, hi]).range([H - m.bottom, m.top]);
   const svg = d3.select(el).append("svg").attr("viewBox", `0 0 ${W} ${H}`)
-    .attr("role", "img").attr("aria-label", `Line chart: average petrol price rose from ${fmtP(F.uk_start)} on 1 February to ${fmtP(UK)} on 1 October`);
+    .attr("role", "img").attr("aria-label", `Line chart: average petrol price rose from ${fmtP(F.uk_start)} on 1 February to ${fmtP(UK)} on ${fmtDay(AS_AT)}. Monthly figures are in the table below.`);
   svg.append("g").selectAll("line").data(y.ticks(6)).join("line").attr("class", "gridline")
     .attr("x1", m.left).attr("x2", W - m.right).attr("y1", d => y(d)).attr("y2", d => y(d));
   svg.append("g").attr("class", "axis").attr("transform", `translate(${m.left - 6},0)`)
@@ -303,15 +323,16 @@ function drawLine() {
   svg.append("path").datum(days.map((d, i) => [d, SERIES.mean[i]]))
     .attr("fill", "none").attr("stroke", accent).attr("stroke-width", 2).attr("stroke-linejoin", "round").attr("stroke-linecap", "round")
     .attr("d", d3.line().x(d => x(d[0])).y(d => y(d[1])).curve(d3.curveMonotoneX));
-  // annotations: the March rise, the summer low, the latest value
+  // annotations, positioned from the data: the March rise, the summer low, the latest value
   const iLow = SERIES.d.indexOf(F.summer_low_date), iEnd = days.length - 1;
-  const dot = (i, r = 4) => svg.append("circle").attr("cx", x(days[i])).attr("cy", y(SERIES.mean[i])).attr("r", r)
+  const iMid = SERIES.d.findIndex(d => d >= "2026-03-01" && SERIES.mean[SERIES.d.indexOf(d)] >= (F.mean_1mar + F.mean_31mar) / 2);
+  const dot = i => svg.append("circle").attr("cx", x(days[i])).attr("cy", y(SERIES.mean[i])).attr("r", 4)
     .attr("fill", accent).attr("stroke", css("--surface")).attr("stroke-width", 2);
   dot(iLow); dot(iEnd);
   svg.append("text").attr("class", "annot-strong").attr("x", x(days[iEnd]) + 6).attr("y", y(SERIES.mean[iEnd]) + 4).text(UK.toFixed(1) + "p");
   svg.append("text").attr("class", "annot").attr("x", x(days[iLow]) - 8).attr("y", y(SERIES.mean[iLow]) + 26)
     .text("Summer low " + F.summer_low.toFixed(1) + "p");
-  const ax = x(parseDay("2026-03-24")) + 6, ay = y(141);
+  const ax = x(days[iMid]) + 14, ay = y(SERIES.mean[iMid]) + 12;
   svg.append("text").attr("class", "annot").attr("x", ax).attr("y", ay).call(t => {
     t.append("tspan").attr("x", ax).text("Record rise");
     t.append("tspan").attr("x", ax).attr("dy", 15).text("in March");
@@ -320,84 +341,81 @@ function drawLine() {
   const tip = makeTip(el);
   const hair = svg.append("line").attr("stroke", css("--axis")).attr("y1", m.top - 6).attr("y2", H - m.bottom).attr("opacity", 0);
   const focus = svg.append("circle").attr("r", 4).attr("fill", accent).attr("stroke", css("--surface")).attr("stroke-width", 2).attr("opacity", 0);
+  tip.onHide = () => { hair.attr("opacity", 0); focus.attr("opacity", 0); };
   const bisect = d3.bisector(d => d).center;
   const move = ev => {
     const [px] = d3.pointer(ev, svg.node());
     const i = Math.max(0, Math.min(days.length - 1, bisect(days, x.invert(px))));
-    const cx = x(days[i]);
+    const cx = x(days[i]), scale = svg.node().getBoundingClientRect().width / W;
     hair.attr("x1", cx).attr("x2", cx).attr("opacity", 1);
     focus.attr("cx", cx).attr("cy", y(SERIES.mean[i])).attr("opacity", 1);
-    const scale = svg.node().getBoundingClientRect().width / W;
     tip.show([["v", fmtP(SERIES.mean[i]), accent], ["k", "Average, " + fmtDay(days[i])],
               ["k", "Middle 80%: " + SERIES.p10[i].toFixed(1) + " to " + fmtP(SERIES.p90[i])]],
              cx * scale + 16, y(SERIES.mean[i]) * scale + 16);
   };
   svg.append("rect").attr("x", m.left).attr("y", 0).attr("width", W - m.left - m.right).attr("height", H)
     .attr("fill", "transparent").style("touch-action", "pan-y")
-    .on("pointermove pointerdown", move)
-    .on("pointerleave", () => { tip.hide(); hair.attr("opacity", 0); focus.attr("opacity", 0); });
+    .on("pointermove pointerdown", move).on("pointerleave", ev => tip.leave(ev));
 }
-const tbody = document.querySelector("#monthly-table tbody");
-Object.entries(F.monthly).forEach(([k, v]) => {
-  const tr = tbody.insertRow();
-  tr.insertCell().textContent = d3.utcFormat("%B")(d3.utcParse("%Y-%m")(k)) + (k.endsWith("10") ? " (1st only)" : "");
-  const td = tr.insertCell(); td.className = "num"; td.textContent = v.toFixed(1);
-});
 
 /* ---------- brand chart ---------- */
+const BRANDS = F.brands;
 function drawBrands() {
-  const el = document.getElementById("brand-chart");
+  const el = byId("brand-chart");
   el.querySelectorAll("svg,.tip").forEach(n => n.remove());
-  const rows = F.brands.filter(b => b.brand !== "MOTORWAY SERVICES");
+  tips.splice(0, tips.length, ...tips.filter(t => t.container !== el));
   const W = el.clientWidth - 32, rowH = 32, barH = 16;
   const labelW = W < 400 ? 112 : 140;
-  const H = rows.length * rowH + 8;
-  const maxAbs = d3.max(rows, d => Math.abs(d.vs_uk));
+  const H = BRANDS.length * rowH + 8;
+  const maxAbs = d3.max(BRANDS, d => Math.abs(d.vs_uk));
   const x = d3.scaleLinear().domain([-maxAbs * 1.5, maxAbs * 1.5]).range([labelW, W]);
   const svg = d3.select(el).append("svg").attr("viewBox", `0 0 ${W} ${H}`)
-    .attr("role", "img").attr("aria-label", "Bar chart of brand average prices against the UK average");
+    .attr("role", "img").attr("aria-label", "Bar chart of brand average prices against the UK average. The figures are in the table below.");
   svg.append("line").attr("x1", x(0)).attr("x2", x(0)).attr("y1", 0).attr("y2", H).attr("stroke", css("--axis"));
   const tip = makeTip(el);
-  const g = svg.selectAll("g.row").data(rows).join("g").attr("class", "row")
+  const g = svg.selectAll("g.row").data(BRANDS).join("g").attr("class", "row")
     .attr("transform", (d, i) => `translate(0,${i * rowH + 4})`);
   g.append("text").attr("class", "lbl").attr("x", 0).attr("y", rowH / 2).attr("dy", "0.35em")
     .style("fill", css("--ink-2")).style("font-size", "13.5px").text(d => titleCase(d.brand));
   // bar with a 4px rounded data end and a square baseline end
-  const r = 4;
   g.append("path").attr("fill", d => d.vs_uk < 0 ? css("--cheap") : css("--dear")).attr("d", d => {
     const x0 = x(0), x1 = x(d.vs_uk), y0 = (rowH - barH) / 2, y1 = y0 + barH;
-    const rr = Math.min(r, Math.abs(x1 - x0));
-    if (d.vs_uk >= 0) return `M${x0},${y0}H${x1 - rr}Q${x1},${y0} ${x1},${y0 + rr}V${y1 - rr}Q${x1},${y1} ${x1 - rr},${y1}H${x0}Z`;
-    return `M${x0},${y0}H${x1 + rr}Q${x1},${y0} ${x1},${y0 + rr}V${y1 - rr}Q${x1},${y1} ${x1 + rr},${y1}H${x0}Z`;
+    const rr = Math.min(4, Math.abs(x1 - x0)), s = d.vs_uk >= 0 ? -1 : 1;
+    return `M${x0},${y0}H${x1 + s * rr}Q${x1},${y0} ${x1},${y0 + rr}V${y1 - rr}Q${x1},${y1} ${x1 + s * rr},${y1}H${x0}Z`;
   });
   g.append("text").attr("class", "lbl").style("fill", css("--ink")).style("font-size", "13px")
     .attr("x", d => x(d.vs_uk) + (d.vs_uk < 0 ? -6 : 6)).attr("y", rowH / 2).attr("dy", "0.35em")
     .attr("text-anchor", d => d.vs_uk < 0 ? "end" : "start").text(d => fmtSigned(d.vs_uk));
   g.append("rect").attr("x", 0).attr("y", 0).attr("width", W).attr("height", rowH).attr("fill", "transparent")
     .on("pointerenter pointerdown", function (ev, d) {
-      const [, py] = d3.pointer(ev, el);
       const bb = this.getBoundingClientRect(), eb = el.getBoundingClientRect();
       tip.show([["v", fmtP(d.mean)], ["k", titleCase(d.brand) + ", " + d.n + " forecourts"]],
                bb.left - eb.left + bb.width * 0.62, bb.top - eb.top);
     })
-    .on("pointerleave", () => tip.hide());
+    .on("pointerleave", ev => tip.leave(ev));
 }
 
 /* ---------- map ---------- */
 const BR = STATIONS.brands;
 const ST = STATIONS.rows.map(r => ({ lat: r[0], lon: r[1], price: r[2] / 10, brand: BR[r[3]], name: r[4], postcode: r[5],
-  supermarket: (r[6] & 1) === 1, motorway: (r[6] & 2) === 2, members: (r[6] & 4) === 4, updated: r[7] }));
+  supermarket: (r[6] & 1) === 1, motorway: (r[6] & 2) === 2, members: (r[6] & 4) === 4, age: r[7] }));
 const bin = p => { const d = p - UK; return d <= -5 ? 0 : d <= -2 ? 1 : d < 2 ? 2 : d < 5 ? 3 : 4; };
+let mapW = 0, mapH = 0, qt = null;
 function drawMap() {
-  const wrap = document.getElementById("map-wrap"), canvas = document.getElementById("map");
+  const wrap = byId("map-wrap"), canvas = byId("map"), ring = byId("ring");
   wrap.querySelectorAll(".tip").forEach(n => n.remove());
+  tips.splice(0, tips.length, ...tips.filter(t => t.container !== wrap));
+  ring.style.display = "none";
   const W = wrap.clientWidth - 32, H = Math.min(Math.round(W * 1.45), 720);
   const dpr = window.devicePixelRatio || 1;
   canvas.width = W * dpr; canvas.height = H * dpr; canvas.style.height = H + "px";
   const ctx = canvas.getContext("2d"); ctx.scale(dpr, dpr);
-  const proj = d3.geoTransverseMercator().rotate([2, -49]).fitExtent([[4, 4], [W - 4, H - 4]],
-    { type: "MultiPoint", coordinates: ST.map(s => [s.lon, s.lat]) });
-  ST.forEach(s => { [s.x, s.y] = proj([s.lon, s.lat]); s.bin = bin(s.price); });
+  if (W !== mapW || H !== mapH || !qt) {          // project only when the size changes
+    const proj = d3.geoTransverseMercator().rotate([2, -49]).fitExtent([[4, 4], [W - 4, H - 4]],
+      { type: "MultiPoint", coordinates: ST.map(s => [s.lon, s.lat]) });
+    ST.forEach(s => { [s.x, s.y] = proj([s.lon, s.lat]); s.bin = bin(s.price); });
+    qt = d3.quadtree(ST, s => s.x, s => s.y); mapW = W; mapH = H;
+  }
   const colours = ["--d-cheap-2", "--d-cheap-1", "--d-mid", "--d-dear-1", "--d-dear-2"].map(css);
   const rad = W < 420 ? 1.7 : 2.1;
   for (const b of [2, 1, 3, 0, 4]) {           // neutral first, extremes on top
@@ -406,55 +424,69 @@ function drawMap() {
     ST.forEach(s => { if (s.bin === b) { ctx.moveTo(s.x + rad, s.y); ctx.arc(s.x, s.y, rad, 0, 2 * Math.PI); } });
     ctx.fill();
   }
-  const qt = d3.quadtree(ST, s => s.x, s => s.y);
   const tip = makeTip(wrap);
+  tip.onHide = () => { ring.style.display = "none"; };
   const pick = ev => {
     const rect = canvas.getBoundingClientRect();
     const px = (ev.clientX - rect.left) * W / rect.width, py = (ev.clientY - rect.top) * H / rect.height;
     const s = qt.find(px, py, 14);
     if (!s) { tip.hide(); return; }
-    tip.show([["v", fmtP(s.price)], ["k", s.name], ["k", titleCase(s.brand) + ", " + s.postcode]], s.x + 16, s.y + 16);
+    ring.style.left = (s.x + 16) + "px"; ring.style.top = (s.y + 16) + "px"; ring.style.display = "block";
+    const when = s.age > FRESH ? "price from " + fmtDay(daysAgo(s.age)) : "updated " + fmtDay(daysAgo(s.age));
+    tip.show([["v", fmtP(s.price)], ["k", s.name], ["k", titleCase(s.brand) + ", " + s.postcode + ", " + when]], s.x + 16, s.y + 16);
   };
-  canvas.onpointermove = pick; canvas.onpointerdown = pick; canvas.onpointerleave = () => tip.hide();
+  canvas.onpointermove = pick; canvas.onpointerdown = pick; canvas.onpointerleave = ev => tip.leave(ev);
 }
+
+/* ---------- tables (no D3 needed) ---------- */
+const row = (tbody, cells) => {
+  const tr = tbody.insertRow();
+  cells.forEach(([text, num]) => { const td = tr.insertCell(); td.textContent = text; if (num) td.className = "num"; });
+  return tr;
+};
+const monthBody = document.querySelector("#monthly-table tbody");
+Object.entries(F.monthly).forEach(([k, v]) => {
+  const mi = +k.slice(5) - 1;
+  row(monthBody, [[k === F.as_at.slice(0, 7) ? AS_AT.getUTCDate() + " " + LONG_MONTHS[mi] + " only" : LONG_MONTHS[mi]], [v.toFixed(1), true]]);
+});
+const brandBody = document.querySelector("#brand-table tbody");
+BRANDS.forEach(b => row(brandBody, [[titleCase(b.brand)], [b.n, true], [b.mean.toFixed(1), true], [fmtSigned(b.vs_uk), true]]));
 const areaBody = document.querySelector("#area-table tbody");
 [...F.cheapest_areas, ...F.dearest_areas].forEach((a, i) => {
-  const tr = areaBody.insertRow();
+  const tr = row(areaBody, [[a.name + " (" + a.area + ")"], [a.n, true], [a.mean.toFixed(1), true]]);
   if (i === F.cheapest_areas.length) tr.style.borderTop = "2px solid var(--axis)";
-  tr.insertCell().textContent = a.name + " (" + a.area + ")";
-  const n = tr.insertCell(); n.className = "num"; n.textContent = a.n;
-  const v = tr.insertCell(); v.className = "num"; v.textContent = a.mean.toFixed(1);
 });
 
-/* ---------- postcode tool ---------- */
-const $ = id => document.getElementById(id);
-let current = null, sortBy = "price";
+/* ---------- postcode tool (no D3 needed) ---------- */
+let current = null, sortBy = "price", searchId = 0;
 const haversineMiles = (a, b, c, d) => {
   const p = Math.PI / 180, h = Math.sin((c - a) * p / 2) ** 2 + Math.cos(a * p) * Math.cos(c * p) * Math.sin((d - b) * p / 2) ** 2;
   return 7917.5 * Math.asin(Math.sqrt(h));
 };
 const FULL_PC = /^([A-Z]{1,2}\d[A-Z\d]?)(\d[A-Z]{2})$/;
 const OUTWARD = /^[A-Z]{1,2}\d[A-Z\d]?$/;
+class LookupError extends Error {}
 async function locate(raw) {
   const pc = raw.toUpperCase().replace(/\s+/g, "");
   const full = pc.match(FULL_PC);
-  if (!full && !OUTWARD.test(pc)) throw new Error("That does not look like a UK postcode.");
+  if (!full && !OUTWARD.test(pc)) throw new LookupError("That does not look like a UK postcode.");
   const outward = full ? full[1] : pc;
   const label = full ? full[1] + " " + full[2] : outward;
+  const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), 5000);
+  let res = null;
   try {
-    const url = full ? `https://api.postcodes.io/postcodes/${pc}` : `https://api.postcodes.io/outcodes/${pc}`;
-    const res = await fetch(url);
-    if (res.ok) {
-      const j = (await res.json()).result;
-      if (j && j.latitude != null) return { lat: j.latitude, lon: j.longitude, label };
-    }
-    if (res.status === 404 && !DISTRICTS[outward]) throw new Error("We could not find that postcode.");
+    res = await fetch(`https://api.postcodes.io/${full ? "postcodes" : "outcodes"}/${pc}`, { signal: ctrl.signal });
   } catch (e) {
-    if (e.message.startsWith("We could")) throw e;
+    res = null;                                    // offline, blocked or timed out
+  } finally { clearTimeout(timer); }
+  if (res && res.ok) {
+    const j = (await res.json()).result;
+    if (j && j.latitude != null) return { lat: j.latitude, lon: j.longitude, label };
   }
-  // offline fallback: the centre of the forecourts in that postcode district
+  if (res && res.status === 404) throw new LookupError("We could not find that postcode.");
+  // the service is unavailable: fall back to the centre of the forecourts in that postcode district
   if (DISTRICTS[outward]) return { lat: DISTRICTS[outward][0], lon: DISTRICTS[outward][1], label: outward + " (approximate)" };
-  throw new Error("We could not find that postcode.");
+  throw new LookupError("The postcode service is not responding. Please try again in a moment.");
 }
 function nearby(loc) {
   const withDist = ST.map(s => ({ ...s, dist: haversineMiles(loc.lat, loc.lon, s.lat, s.lon) }));
@@ -465,26 +497,29 @@ function nearby(loc) {
 }
 function render() {
   const { loc, radius, list } = current;
-  const res = $("results"), sum = $("summary"), ol = $("station-list");
-  res.hidden = false;
+  const sum = byId("summary"), ol = byId("station-list");
+  byId("results").hidden = false;
   if (!list.length) { sum.textContent = "There are no forecourts reporting prices within 20 miles of " + loc.label + "."; ol.replaceChildren(); return; }
   const byPrice = [...list].sort((a, b) => a.price - b.price || a.dist - b.dist);
-  const open = byPrice.filter(s => !s.members);          // Costco sells only to members
-  const pool = open.length ? open : byPrice;
+  const open = byPrice.filter(s => !s.members);               // Costco sells only to members
+  const fresh = open.filter(s => s.age <= FRESH);              // a stale price looks cheap while prices rise
+  const pool = fresh.length ? fresh : open.length ? open : byPrice;
   const cheapest = pool[0], nearest = [...pool].sort((a, b) => a.dist - b.dist)[0];
   sum.replaceChildren();
   const add = (t, strong) => { const n = strong ? document.createElement("strong") : document.createTextNode(t); if (strong) n.textContent = t; sum.appendChild(n); };
-  add(`Within ${radius} miles of ${loc.label}, the cheapest petrol is `);
+  add(`Within ${MILES[radius]} miles of ${loc.label}, the cheapest petrol ${fresh.length ? "reported in the last week" : "open to everyone"} is `);
   add(`${fmtP(cheapest.price)} at ${cheapest.name}`, true);
   add(`, ${cheapest.dist.toFixed(1)} miles away. `);
-  if (nearest === cheapest || nearest.price - cheapest.price < 0.5) add("Your nearest forecourt is as cheap as it gets. ");
+  if (nearest === cheapest) add("It is also the nearest. ");
+  else if (nearest.price - cheapest.price < 0.5) add("The nearest forecourt is within 0.5p of it. ");
   else {
-    add(`Your nearest forecourt, ${nearest.name}, charges ${fmtP(nearest.price)}, so filling up at the cheapest instead saves `);
+    add(`The nearest, ${nearest.name}, charges ${fmtP(nearest.price)}, so filling up at the cheapest instead saves `);
     add(fmtGBP((nearest.price - cheapest.price) * TANK / 100) + " on a 55-litre tank", true);
     add(". ");
   }
+  if (!fresh.length) add("None of these forecourts has reported a price in the last week, so prices may have changed. ");
   const members = byPrice.find(s => s.members);
-  if (members && members.price < cheapest.price) add(`Costco, which is open to members only, charges ${fmtP(members.price)}.`);
+  if (members && members.price < cheapest.price) add(`Costco charges ${fmtP(members.price)}, but only to members.`);
   const shown = (sortBy === "price" ? byPrice : [...list].sort((a, b) => a.dist - b.dist)).slice(0, 10);
   ol.replaceChildren(...shown.map(s => {
     const li = document.createElement("li");
@@ -495,38 +530,53 @@ function render() {
     const right = document.createElement("div");
     const nm = document.createElement("div"); nm.className = "st-name"; nm.textContent = s.name;
     const meta = document.createElement("div"); meta.className = "st-meta";
-    meta.textContent = `${titleCase(s.brand)} · ${s.dist.toFixed(1)} mi · updated ${fmtDay(parseDay("2026-" + s.updated))}`;
+    meta.append(`${titleCase(s.brand)} · ${s.dist.toFixed(1)} mi · `);
+    const when = document.createElement("span");
+    if (s.age > FRESH) { when.className = "stale"; when.textContent = `price from ${fmtDay(daysAgo(s.age))}, may have changed`; }
+    else when.textContent = `updated ${fmtDay(daysAgo(s.age))}`;
+    meta.appendChild(when);
     right.append(nm, meta);
-    if (s.supermarket || s.motorway || s.members) {
+    const flags = [[s.supermarket, "Supermarket"], [s.motorway, "Motorway"], [s.members, "Members only"]].filter(f => f[0]);
+    if (flags.length) {
       const b = document.createElement("div");
-      [[s.supermarket, "Supermarket"], [s.motorway, "Motorway"], [s.members, "Members only"]].forEach(([on, t]) => {
-        if (on) { const sp = document.createElement("span"); sp.className = "badge"; sp.textContent = t; b.appendChild(sp); }
-      });
+      flags.forEach(([, t]) => { const sp = document.createElement("span"); sp.className = "badge"; sp.textContent = t; b.appendChild(sp); });
       right.appendChild(b);
     }
     li.append(left, right);
     return li;
   }));
 }
-async function search(loc) {
+function show(loc) {
   const n = nearby(loc);
   current = { loc, ...n };
-  $("status").textContent = `${n.list.length} forecourts within ${n.radius} miles. Prices as at ${F.as_at_long}.`;
+  byId("status").textContent = `${n.list.length} forecourts within ${MILES[n.radius]} miles. Prices as at ${AS_AT.getUTCDate()} ${LONG_MONTHS[AS_AT.getUTCMonth()]} ${AS_AT.getUTCFullYear()}.`;
   render();
 }
-$("pc-form").addEventListener("submit", async ev => {
+async function run(lookup) {
+  const id = ++searchId, go = byId("go");
+  go.disabled = true;
+  try {
+    const loc = await lookup();
+    if (id === searchId) show(loc);              // ignore answers to an earlier search
+  } catch (e) {
+    if (id !== searchId) return;
+    byId("status").textContent = e instanceof LookupError ? e.message : "Something went wrong. Please try again.";
+    byId("results").hidden = true;
+  } finally { if (id === searchId) go.disabled = false; }
+}
+byId("pc-form").addEventListener("submit", ev => {
   ev.preventDefault();
-  $("status").textContent = "Searching…";
-  try { await search(await locate($("pc").value)); }
-  catch (e) { $("status").textContent = e.message; $("results").hidden = true; }
+  byId("status").textContent = "Searching…";
+  const value = byId("pc").value.trim();
+  run(() => locate(value));
 });
-$("geo").addEventListener("click", () => {
-  if (!navigator.geolocation) { $("status").textContent = "Location is not available on this device."; return; }
-  $("status").textContent = "Finding your location…";
-  navigator.geolocation.getCurrentPosition(
-    p => search({ lat: p.coords.latitude, lon: p.coords.longitude, label: "your location" }),
-    () => { $("status").textContent = "We could not get your location. Try a postcode instead."; },
-    { timeout: 10000, maximumAge: 600000 });
+byId("geo").addEventListener("click", () => {
+  if (!navigator.geolocation) { byId("status").textContent = "Location is not available on this device. Try a postcode instead."; return; }
+  byId("status").textContent = "Finding your location…";
+  run(() => new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(
+    p => resolve({ lat: p.coords.latitude, lon: p.coords.longitude, label: "your location" }),
+    () => reject(new LookupError("We could not get your location. Try a postcode instead.")),
+    { timeout: 10000, maximumAge: 600000 })));
 });
 document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
   sortBy = b.dataset.sort;
@@ -534,14 +584,26 @@ document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click"
   if (current) render();
 }));
 
-/* ---------- render and re-render on resize or theme change ---------- */
+/* ---------- charts: draw, then redraw on resize or theme change ---------- */
+if (!hasD3) {
+  ["line-chart", "brand-chart", "map-wrap"].forEach(id => {
+    const p = document.createElement("p"); p.className = "nochart";
+    p.textContent = "The chart could not load. The figures are in the table below.";
+    byId(id).replaceChildren(p);
+  });
+  return;
+}
 const drawAll = () => { drawLine(); drawBrands(); drawMap(); };
-let lastW = 0;
+let lastW = 0, frame = 0;
 new ResizeObserver(() => {
-  const w = document.querySelector(".wrap").clientWidth;
-  if (Math.abs(w - lastW) > 8) { lastW = w; drawAll(); }
+  cancelAnimationFrame(frame);
+  frame = requestAnimationFrame(() => {
+    const w = document.querySelector(".wrap").clientWidth;
+    if (Math.abs(w - lastW) > 8) { lastW = w; drawAll(); }
+  });
 }).observe(document.querySelector(".wrap"));
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", drawAll);
+})();
 </script>
 </body>
 </html>
