@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Petrol Price Tracker</title>
+<meta name="description" content="UK unleaded (E10) prices from the government's Fuel Finder data: how far they have risen since February and where to find cheaper petrol near you.">
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #6f6d68;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11,11,11,0.10);
+  --accent: #2a78d6;
+  --accent-ink: #1c5cab;
+  --cheap: #2a78d6;
+  --dear: #e34948;
+  --d-cheap-2: #1c5cab;
+  --d-cheap-1: #86b6ef;
+  --d-mid: #c3c2b7;
+  --d-dear-1: #ef9a90;
+  --d-dear-2: #a8262a;
+  --chip: #f0efec;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --muted: #9a988f;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255,255,255,0.10);
+    --accent: #3987e5;
+    --accent-ink: #86b6ef;
+    --cheap: #3987e5;
+    --dear: #e66767;
+    --d-cheap-2: #86b6ef;
+    --d-cheap-1: #3987e5;
+    --d-mid: #5a5955;
+    --d-dear-1: #e66767;
+    --d-dear-2: #f2a8a0;
+    --chip: #2c2c2a;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #9a988f;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10); --accent: #3987e5;
+  --accent-ink: #86b6ef; --cheap: #3987e5; --dear: #e66767; --d-cheap-2: #86b6ef;
+  --d-cheap-1: #3987e5; --d-mid: #5a5955; --d-dear-1: #e66767; --d-dear-2: #f2a8a0; --chip: #2c2c2a;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--page); color: var(--ink);
+  font: 17px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+.wrap { max-width: 640px; margin: 0 auto; padding: 24px 16px 48px; }
+.kicker { margin: 0 0 8px; font-size: 13px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--accent-ink); }
+h1 { margin: 0 0 12px; font: 700 30px/1.15 Georgia, "Times New Roman", serif; letter-spacing: -.01em; }
+.standfirst { margin: 0 0 12px; font-size: 19px; line-height: 1.45; color: var(--ink-2); }
+.meta { margin: 0 0 24px; font-size: 13px; color: var(--muted); }
+h2 { margin: 40px 0 6px; font-size: 21px; line-height: 1.25; }
+.sub { margin: 0 0 14px; font-size: 15px; color: var(--ink-2); }
+p { margin: 0 0 14px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+.hero .label { font-size: 15px; color: var(--ink-2); margin: 0 0 2px; }
+.hero .value { font-size: 52px; font-weight: 650; line-height: 1.05; margin: 0 0 6px; }
+.hero .delta { font-size: 15px; color: var(--ink-2); margin: 0; }
+.hero .delta strong { color: var(--ink); }
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.tile .label { font-size: 14px; color: var(--ink-2); margin: 0 0 2px; }
+.tile .value { font-size: 26px; font-weight: 650; line-height: 1.15; margin: 0 0 2px; }
+.tile .note { font-size: 13px; color: var(--muted); margin: 0; }
+.chart { position: relative; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.axis text, .lbl { font-size: 12px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+.axis path, .axis line { stroke: var(--axis); }
+.gridline { stroke: var(--grid); stroke-width: 1; }
+.annot { font-size: 12.5px; fill: var(--ink-2); }
+.annot-strong { font-size: 13px; font-weight: 650; fill: var(--ink); }
+.tip {
+  position: absolute; pointer-events: none; z-index: 5; min-width: 120px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.12); padding: 8px 10px; font-size: 13px; line-height: 1.35;
+  opacity: 0; transition: opacity .1s;
+}
+.tip .v { font-size: 16px; font-weight: 650; color: var(--ink); }
+.tip .k { color: var(--ink-2); }
+.tip .key { display: inline-block; width: 12px; height: 2px; vertical-align: middle; margin-right: 6px; }
+details { margin-top: 10px; font-size: 15px; }
+summary { cursor: pointer; color: var(--accent-ink); font-weight: 600; padding: 6px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 15px; margin-top: 6px; }
+th, td { text-align: left; padding: 7px 4px; border-bottom: 1px solid var(--grid); }
+th { font-size: 13px; color: var(--muted); font-weight: 600; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 10px; font-size: 13px; color: var(--ink-2); list-style: none; padding: 0; }
+.legend li { display: flex; align-items: center; gap: 6px; }
+.sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.sw.dot { border-radius: 50%; width: 10px; height: 10px; }
+/* tool */
+.tool form { display: flex; gap: 8px; }
+.tool input {
+  flex: 1; min-width: 0; font-size: 18px; padding: 12px 14px; border-radius: 10px;
+  border: 1px solid var(--axis); background: var(--page); color: var(--ink); text-transform: uppercase;
+}
+.tool input::placeholder { text-transform: none; color: var(--muted); }
+.btn {
+  font: 600 16px/1 system-ui, -apple-system, "Segoe UI", sans-serif; border-radius: 10px; padding: 0 16px;
+  min-height: 48px; border: 0; background: var(--accent); color: #fff; cursor: pointer;
+}
+.btn.ghost { background: transparent; color: var(--accent-ink); padding: 0; min-height: 44px; }
+.status { font-size: 14px; color: var(--muted); margin: 10px 0 0; min-height: 1.4em; }
+.summary { margin: 14px 0 6px; font-size: 17px; }
+.summary strong { font-weight: 650; }
+.seg { display: inline-flex; border: 1px solid var(--axis); border-radius: 999px; padding: 2px; margin: 4px 0 8px; }
+.seg button {
+  font: 600 14px/1 system-ui, sans-serif; border: 0; background: none; color: var(--ink-2);
+  border-radius: 999px; padding: 9px 14px; cursor: pointer; min-height: 36px;
+}
+.seg button[aria-pressed="true"] { background: var(--chip); color: var(--ink); }
+ol.stations { list-style: none; margin: 0; padding: 0; }
+ol.stations li { display: grid; grid-template-columns: 78px 1fr; gap: 2px 12px; padding: 12px 0; border-top: 1px solid var(--grid); }
+.st-price { font-size: 22px; font-weight: 650; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.st-diff { font-size: 12.5px; color: var(--muted); }
+.st-name { font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.st-meta { font-size: 13.5px; color: var(--ink-2); }
+.badge { display: inline-block; font-size: 11.5px; font-weight: 600; padding: 2px 7px; border-radius: 999px; background: var(--chip); color: var(--ink-2); margin-right: 4px; }
+.best { color: var(--accent-ink); }
+.map-wrap { position: relative; }
+canvas { display: block; width: 100%; touch-action: pan-y; }
+.method { font-size: 15px; color: var(--ink-2); }
+.method h2 { color: var(--ink); }
+.method li { margin-bottom: 8px; }
+.source { font-size: 13px; color: var(--muted); margin-top: 8px; }
+@media (min-width: 600px) {
+  h1 { font-size: 38px; }
+  .wrap { padding-top: 40px; }
+}
+@media (prefers-reduced-motion: reduce) { .tip { transition: none; } }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <p class="kicker">Fuel prices</p>
+    <h1>Petrol is up {{rise_p}}p a litre since February. Here is where to find it cheaper</h1>
+    <p class="standfirst">Filling a family car with unleaded now costs {{tank_now}}, about {{tank_rise}} more than at the start of February. Prices jumped by a record amount in March and have been climbing again since July.</p>
+    <p class="meta">Standard unleaded (E10) prices from {{stations_now}} forecourts, to {{as_at_long}}</p>
+  </header>
+
+  <section class="hero card" aria-label="Cost of a tank of petrol">
+    <p class="label">Cost of filling a 55-litre tank</p>
+    <p class="value">{{tank_now}}</p>
+    <p class="delta"><strong>Up {{tank_rise}}</strong> from {{tank_start}} on 1 February</p>
+  </section>
+  <div class="tiles">
+    <div class="tile card"><p class="label">Average litre</p><p class="value">{{uk_now}}p</p><p class="note">from {{uk_start}}p on 1 Feb</p></div>
+    <div class="tile card"><p class="label">Motorway services</p><p class="value">+{{mw_gap}}p</p><p class="note">a litre over a typical forecourt</p></div>
+  </div>
+
+  <h2>A record rise in March, then a second climb</h2>
+  <p class="sub">Average UK price of a litre of E10 unleaded, pence. The shaded band covers the middle 80 per cent of forecourts</p>
+  <div class="chart card" id="line-chart"></div>
+  <details>
+    <summary>Monthly averages</summary>
+    <table id="monthly-table"><thead><tr><th>Month</th><th class="num">Average, p/litre</th></tr></thead><tbody></tbody></table>
+  </details>
+  <p style="margin-top:16px">The average litre rose by {{march_rise}}p in March, from {{mean_1mar}}p to {{mean_31mar}}p, as war in the Middle East pushed up the price of oil. The RAC called it the biggest monthly increase on record. Prices peaked at {{spring_peak}}p in late May and eased to {{summer_low}}p in early July. Since then they have risen by {{second_rise}}p, more than March's jump, though spread over three months rather than one.</p>
+
+  <section class="tool" id="tool">
+    <h2>Find cheaper petrol near you</h2>
+    <p class="sub">Enter a postcode to see the cheapest forecourts within five miles</p>
+    <div class="card">
+      <form id="pc-form" autocomplete="on">
+        <label for="pc" class="visually-hidden" style="position:absolute;left:-9999px">Postcode</label>
+        <input id="pc" name="postcode" inputmode="text" autocomplete="postal-code" placeholder="e.g. SW1A 1AA or LS1" maxlength="8" required>
+        <button class="btn" type="submit">Search</button>
+      </form>
+      <button class="btn ghost" id="geo" type="button">Use my location</button>
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+      <div id="results" hidden>
+        <p class="summary" id="summary"></p>
+        <div class="seg" role="group" aria-label="Sort forecourts">
+          <button type="button" data-sort="price" aria-pressed="true">Cheapest</button>
+          <button type="button" data-sort="dist" aria-pressed="false">Nearest</button>
+        </div>
+        <ol class="stations" id="station-list"></ol>
+      </div>
+    </div>
+  </section>
+
+  <h2>Supermarkets are cheapest, Shell and BP dearest</h2>
+  <p class="sub">Average price by brand compared with the UK average of {{uk_now}}p, pence a litre. Great Britain, excluding motorway sites; brands with at least 80 forecourts</p>
+  <ul class="legend" aria-hidden="true">
+    <li><span class="sw" style="background:var(--cheap)"></span>Cheaper than average</li>
+    <li><span class="sw" style="background:var(--dear)"></span>Dearer than average</li>
+  </ul>
+  <div class="chart card" id="brand-chart"></div>
+  <p style="margin-top:16px">The gaps between brands are small, about {{brand_spread}}p a litre between Tesco and Shell, or roughly {{brand_tank}} a tank. Drivers pay most on the motorway. The typical motorway forecourt charges {{mw_median}}p, {{mw_gap}}p above the typical forecourt elsewhere, which adds about {{mw_tank}} to a tank.</p>
+
+  <h2>Petrol is {{ni_gap}}p cheaper in Northern Ireland</h2>
+  <p class="sub">Every forecourt, coloured by its price against the UK average. Tap a dot for details</p>
+  <ul class="legend" aria-hidden="true">
+    <li><span class="sw dot" style="background:var(--d-cheap-2)"></span>5p+ cheaper</li>
+    <li><span class="sw dot" style="background:var(--d-cheap-1)"></span>2 to 5p cheaper</li>
+    <li><span class="sw dot" style="background:var(--d-mid)"></span>Within 2p</li>
+    <li><span class="sw dot" style="background:var(--d-dear-1)"></span>2 to 5p dearer</li>
+    <li><span class="sw dot" style="background:var(--d-dear-2)"></span>5p+ dearer</li>
+  </ul>
+  <div class="map-wrap card" id="map-wrap"><canvas id="map" role="img" aria-label="Map of UK forecourts coloured by petrol price. Northern Ireland is mostly cheaper than average; motorway sites and the Scottish Highlands are mostly dearer."></canvas></div>
+  <p style="margin-top:16px">Petrol in Northern Ireland averages {{ni_now}}p, {{ni_gap}}p less than in Great Britain. On the mainland, the {{cheap_area}} postcode area is cheapest at {{cheap_area_p}}p and {{dear_area}} the dearest at {{dear_area_p}}p.</p>
+  <details>
+    <summary>Cheapest and dearest postcode areas</summary>
+    <table id="area-table"><thead><tr><th>Postcode area</th><th class="num">Forecourts</th><th class="num">Average, p</th></tr></thead><tbody></tbody></table>
+  </details>
+
+  <section class="method">
+    <h2>How we did this</h2>
+    <ul>
+      <li>Prices come from Fuel Finder, the government scheme that has required forecourts to report price changes within 30 minutes since early 2026. This analysis uses standard unleaded (E10) only.</li>
+      <li>Each forecourt's latest price is carried forward day by day until it reports again (for up to 30 days), so averages are taken across forecourts rather than across price updates.</li>
+      <li>We removed {{dropped_rows}} of {{raw_rows}} price records: duplicates, impossible dates and prices that were clearly typing errors, such as 1.5p or 999.9p. {{coords_fixed}} forecourts with misplaced map coordinates were corrected using their postcode.</li>
+      <li>As a check, our average of {{mean_1mar}}p on 1 March is {{rac_diff}}p from the RAC's published figure of {{rac_1mar}}p for that day.</li>
+      <li>A "motorway" site is one flagged as such by its operator. Some of those are on major A-roads, so we use the median price for that comparison. Brand and area comparisons exclude motorway sites.</li>
+      <li>Postcode searches use postcodes.io. Distances are straight-line. The cheapest-near-you result leaves out Costco, which sells only to members. A tank is 55 litres, the RAC's standard for a family car.</li>
+    </ul>
+    <p class="source">Source: Fuel Finder, Department for Energy Security and Net Zero, Open Government Licence v3.0; RAC</p>
+  </section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script>
+const SERIES = /*__SERIES__*/null;
+const STATIONS = /*__STATIONS__*/null;
+const DISTRICTS = /*__DISTRICTS__*/null;
+const F = /*__FINDINGS__*/null;
+
+const UK = F.uk_now, TANK = 55;
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const fmtP = v => v.toFixed(1) + "p";
+const fmtSigned = v => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(1) + "p";
+const fmtGBP = v => "£" + v.toFixed(2);
+const parseDay = d3.utcParse("%Y-%m-%d");
+const fmtDay = d3.utcFormat("%-d %b");
+const BRAND_NAMES = { "EG ON THE MOVE": "EG On The Move", "BP": "BP", "SAINSBURY'S": "Sainsbury's", "ASDA EXPRESS": "Asda Express" };
+const titleCase = s => BRAND_NAMES[s] || s.toLowerCase().replace(/(^|[\s\-'(])([a-z])/g, (m, a, b) => a + b.toUpperCase());
+
+function makeTip(container) {
+  const tip = document.createElement("div");
+  tip.className = "tip";
+  container.appendChild(tip);
+  return {
+    show(rows, x, y) {
+      tip.replaceChildren();
+      rows.forEach(([cls, text, key]) => {
+        const div = document.createElement("div");
+        if (key) { const k = document.createElement("span"); k.className = "key"; k.style.background = key; div.appendChild(k); }
+        const span = document.createElement("span");
+        span.className = cls; span.textContent = text;
+        div.appendChild(span);
+        tip.appendChild(div);
+      });
+      const cw = container.clientWidth, tw = tip.offsetWidth;
+      tip.style.left = Math.max(4, Math.min(cw - tw - 4, x - tw / 2)) + "px";
+      tip.style.top = Math.max(0, y - tip.offsetHeight - 12) + "px";
+      tip.style.opacity = 1;
+    },
+    hide() { tip.style.opacity = 0; }
+  };
+}
+
+/* ---------- line chart ---------- */
+const days = SERIES.d.map(parseDay);
+function drawLine() {
+  const el = document.getElementById("line-chart");
+  el.querySelectorAll("svg,.tip").forEach(n => n.remove());
+  const W = el.clientWidth - 32, H = W < 420 ? 250 : 290;
+  const m = { top: 30, right: 46, bottom: 26, left: 38 };
+  const x = d3.scaleUtc().domain(d3.extent(days)).range([m.left, W - m.right]);
+  const y = d3.scaleLinear().domain([125, 185]).range([H - m.bottom, m.top]);
+  const svg = d3.select(el).append("svg").attr("viewBox", `0 0 ${W} ${H}`)
+    .attr("role", "img").attr("aria-label", `Line chart: average petrol price rose from ${fmtP(F.uk_start)} on 1 February to ${fmtP(UK)} on 1 October`);
+  svg.append("g").selectAll("line").data(y.ticks(6)).join("line").attr("class", "gridline")
+    .attr("x1", m.left).attr("x2", W - m.right).attr("y1", d => y(d)).attr("y2", d => y(d));
+  svg.append("g").attr("class", "axis").attr("transform", `translate(${m.left - 6},0)`)
+    .call(d3.axisLeft(y).ticks(6).tickSize(0).tickFormat(d => d + "p")).call(g => g.select(".domain").remove());
+  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${H - m.bottom})`)
+    .call(d3.axisBottom(x).ticks(d3.utcMonth.every(1)).tickSize(4).tickFormat(d3.utcFormat("%b")))
+    .call(g => g.select(".domain").attr("stroke", css("--axis")));
+  const accent = css("--accent");
+  svg.append("path").datum(days.map((d, i) => [d, SERIES.p10[i], SERIES.p90[i]]))
+    .attr("fill", accent).attr("fill-opacity", 0.12)
+    .attr("d", d3.area().x(d => x(d[0])).y0(d => y(d[1])).y1(d => y(d[2])).curve(d3.curveMonotoneX));
+  svg.append("path").datum(days.map((d, i) => [d, SERIES.mean[i]]))
+    .attr("fill", "none").attr("stroke", accent).attr("stroke-width", 2).attr("stroke-linejoin", "round").attr("stroke-linecap", "round")
+    .attr("d", d3.line().x(d => x(d[0])).y(d => y(d[1])).curve(d3.curveMonotoneX));
+  // annotations: the March rise, the summer low, the latest value
+  const iLow = SERIES.d.indexOf(F.summer_low_date), iEnd = days.length - 1;
+  const dot = (i, r = 4) => svg.append("circle").attr("cx", x(days[i])).attr("cy", y(SERIES.mean[i])).attr("r", r)
+    .attr("fill", accent).attr("stroke", css("--surface")).attr("stroke-width", 2);
+  dot(iLow); dot(iEnd);
+  svg.append("text").attr("class", "annot-strong").attr("x", x(days[iEnd]) + 6).attr("y", y(SERIES.mean[iEnd]) + 4).text(UK.toFixed(1) + "p");
+  svg.append("text").attr("class", "annot").attr("x", x(days[iLow]) - 8).attr("y", y(SERIES.mean[iLow]) + 26)
+    .text("Summer low " + F.summer_low.toFixed(1) + "p");
+  const ax = x(parseDay("2026-03-24")) + 6, ay = y(141);
+  svg.append("text").attr("class", "annot").attr("x", ax).attr("y", ay).call(t => {
+    t.append("tspan").attr("x", ax).text("Record rise");
+    t.append("tspan").attr("x", ax).attr("dy", 15).text("in March");
+  });
+  // crosshair + tooltip
+  const tip = makeTip(el);
+  const hair = svg.append("line").attr("stroke", css("--axis")).attr("y1", m.top - 6).attr("y2", H - m.bottom).attr("opacity", 0);
+  const focus = svg.append("circle").attr("r", 4).attr("fill", accent).attr("stroke", css("--surface")).attr("stroke-width", 2).attr("opacity", 0);
+  const bisect = d3.bisector(d => d).center;
+  const move = ev => {
+    const [px] = d3.pointer(ev, svg.node());
+    const i = Math.max(0, Math.min(days.length - 1, bisect(days, x.invert(px))));
+    const cx = x(days[i]);
+    hair.attr("x1", cx).attr("x2", cx).attr("opacity", 1);
+    focus.attr("cx", cx).attr("cy", y(SERIES.mean[i])).attr("opacity", 1);
+    const scale = svg.node().getBoundingClientRect().width / W;
+    tip.show([["v", fmtP(SERIES.mean[i]), accent], ["k", "Average, " + fmtDay(days[i])],
+              ["k", "Middle 80%: " + SERIES.p10[i].toFixed(1) + " to " + fmtP(SERIES.p90[i])]],
+             cx * scale + 16, y(SERIES.mean[i]) * scale + 16);
+  };
+  svg.append("rect").attr("x", m.left).attr("y", 0).attr("width", W - m.left - m.right).attr("height", H)
+    .attr("fill", "transparent").style("touch-action", "pan-y")
+    .on("pointermove pointerdown", move)
+    .on("pointerleave", () => { tip.hide(); hair.attr("opacity", 0); focus.attr("opacity", 0); });
+}
+const tbody = document.querySelector("#monthly-table tbody");
+Object.entries(F.monthly).forEach(([k, v]) => {
+  const tr = tbody.insertRow();
+  tr.insertCell().textContent = d3.utcFormat("%B")(d3.utcParse("%Y-%m")(k)) + (k.endsWith("10") ? " (1st only)" : "");
+  const td = tr.insertCell(); td.className = "num"; td.textContent = v.toFixed(1);
+});
+
+/* ---------- brand chart ---------- */
+function drawBrands() {
+  const el = document.getElementById("brand-chart");
+  el.querySelectorAll("svg,.tip").forEach(n => n.remove());
+  const rows = F.brands.filter(b => b.brand !== "MOTORWAY SERVICES");
+  const W = el.clientWidth - 32, rowH = 32, barH = 16;
+  const labelW = W < 400 ? 112 : 140;
+  const H = rows.length * rowH + 8;
+  const maxAbs = d3.max(rows, d => Math.abs(d.vs_uk));
+  const x = d3.scaleLinear().domain([-maxAbs * 1.5, maxAbs * 1.5]).range([labelW, W]);
+  const svg = d3.select(el).append("svg").attr("viewBox", `0 0 ${W} ${H}`)
+    .attr("role", "img").attr("aria-label", "Bar chart of brand average prices against the UK average");
+  svg.append("line").attr("x1", x(0)).attr("x2", x(0)).attr("y1", 0).attr("y2", H).attr("stroke", css("--axis"));
+  const tip = makeTip(el);
+  const g = svg.selectAll("g.row").data(rows).join("g").attr("class", "row")
+    .attr("transform", (d, i) => `translate(0,${i * rowH + 4})`);
+  g.append("text").attr("class", "lbl").attr("x", 0).attr("y", rowH / 2).attr("dy", "0.35em")
+    .style("fill", css("--ink-2")).style("font-size", "13.5px").text(d => titleCase(d.brand));
+  // bar with a 4px rounded data end and a square baseline end
+  const r = 4;
+  g.append("path").attr("fill", d => d.vs_uk < 0 ? css("--cheap") : css("--dear")).attr("d", d => {
+    const x0 = x(0), x1 = x(d.vs_uk), y0 = (rowH - barH) / 2, y1 = y0 + barH;
+    const rr = Math.min(r, Math.abs(x1 - x0));
+    if (d.vs_uk >= 0) return `M${x0},${y0}H${x1 - rr}Q${x1},${y0} ${x1},${y0 + rr}V${y1 - rr}Q${x1},${y1} ${x1 - rr},${y1}H${x0}Z`;
+    return `M${x0},${y0}H${x1 + rr}Q${x1},${y0} ${x1},${y0 + rr}V${y1 - rr}Q${x1},${y1} ${x1 + rr},${y1}H${x0}Z`;
+  });
+  g.append("text").attr("class", "lbl").style("fill", css("--ink")).style("font-size", "13px")
+    .attr("x", d => x(d.vs_uk) + (d.vs_uk < 0 ? -6 : 6)).attr("y", rowH / 2).attr("dy", "0.35em")
+    .attr("text-anchor", d => d.vs_uk < 0 ? "end" : "start").text(d => fmtSigned(d.vs_uk));
+  g.append("rect").attr("x", 0).attr("y", 0).attr("width", W).attr("height", rowH).attr("fill", "transparent")
+    .on("pointerenter pointerdown", function (ev, d) {
+      const [, py] = d3.pointer(ev, el);
+      const bb = this.getBoundingClientRect(), eb = el.getBoundingClientRect();
+      tip.show([["v", fmtP(d.mean)], ["k", titleCase(d.brand) + ", " + d.n + " forecourts"]],
+               bb.left - eb.left + bb.width * 0.62, bb.top - eb.top);
+    })
+    .on("pointerleave", () => tip.hide());
+}
+
+/* ---------- map ---------- */
+const BR = STATIONS.brands;
+const ST = STATIONS.rows.map(r => ({ lat: r[0], lon: r[1], price: r[2] / 10, brand: BR[r[3]], name: r[4], postcode: r[5],
+  supermarket: (r[6] & 1) === 1, motorway: (r[6] & 2) === 2, members: (r[6] & 4) === 4, updated: r[7] }));
+const bin = p => { const d = p - UK; return d <= -5 ? 0 : d <= -2 ? 1 : d < 2 ? 2 : d < 5 ? 3 : 4; };
+function drawMap() {
+  const wrap = document.getElementById("map-wrap"), canvas = document.getElementById("map");
+  wrap.querySelectorAll(".tip").forEach(n => n.remove());
+  const W = wrap.clientWidth - 32, H = Math.min(Math.round(W * 1.45), 720);
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = W * dpr; canvas.height = H * dpr; canvas.style.height = H + "px";
+  const ctx = canvas.getContext("2d"); ctx.scale(dpr, dpr);
+  const proj = d3.geoTransverseMercator().rotate([2, -49]).fitExtent([[4, 4], [W - 4, H - 4]],
+    { type: "MultiPoint", coordinates: ST.map(s => [s.lon, s.lat]) });
+  ST.forEach(s => { [s.x, s.y] = proj([s.lon, s.lat]); s.bin = bin(s.price); });
+  const colours = ["--d-cheap-2", "--d-cheap-1", "--d-mid", "--d-dear-1", "--d-dear-2"].map(css);
+  const rad = W < 420 ? 1.7 : 2.1;
+  for (const b of [2, 1, 3, 0, 4]) {           // neutral first, extremes on top
+    ctx.fillStyle = colours[b];
+    ctx.beginPath();
+    ST.forEach(s => { if (s.bin === b) { ctx.moveTo(s.x + rad, s.y); ctx.arc(s.x, s.y, rad, 0, 2 * Math.PI); } });
+    ctx.fill();
+  }
+  const qt = d3.quadtree(ST, s => s.x, s => s.y);
+  const tip = makeTip(wrap);
+  const pick = ev => {
+    const rect = canvas.getBoundingClientRect();
+    const px = (ev.clientX - rect.left) * W / rect.width, py = (ev.clientY - rect.top) * H / rect.height;
+    const s = qt.find(px, py, 14);
+    if (!s) { tip.hide(); return; }
+    tip.show([["v", fmtP(s.price)], ["k", s.name], ["k", titleCase(s.brand) + ", " + s.postcode]], s.x + 16, s.y + 16);
+  };
+  canvas.onpointermove = pick; canvas.onpointerdown = pick; canvas.onpointerleave = () => tip.hide();
+}
+const areaBody = document.querySelector("#area-table tbody");
+[...F.cheapest_areas, ...F.dearest_areas].forEach((a, i) => {
+  const tr = areaBody.insertRow();
+  if (i === F.cheapest_areas.length) tr.style.borderTop = "2px solid var(--axis)";
+  tr.insertCell().textContent = a.name + " (" + a.area + ")";
+  const n = tr.insertCell(); n.className = "num"; n.textContent = a.n;
+  const v = tr.insertCell(); v.className = "num"; v.textContent = a.mean.toFixed(1);
+});
+
+/* ---------- postcode tool ---------- */
+const $ = id => document.getElementById(id);
+let current = null, sortBy = "price";
+const haversineMiles = (a, b, c, d) => {
+  const p = Math.PI / 180, h = Math.sin((c - a) * p / 2) ** 2 + Math.cos(a * p) * Math.cos(c * p) * Math.sin((d - b) * p / 2) ** 2;
+  return 7917.5 * Math.asin(Math.sqrt(h));
+};
+const FULL_PC = /^([A-Z]{1,2}\d[A-Z\d]?)(\d[A-Z]{2})$/;
+const OUTWARD = /^[A-Z]{1,2}\d[A-Z\d]?$/;
+async function locate(raw) {
+  const pc = raw.toUpperCase().replace(/\s+/g, "");
+  const full = pc.match(FULL_PC);
+  if (!full && !OUTWARD.test(pc)) throw new Error("That does not look like a UK postcode.");
+  const outward = full ? full[1] : pc;
+  const label = full ? full[1] + " " + full[2] : outward;
+  try {
+    const url = full ? `https://api.postcodes.io/postcodes/${pc}` : `https://api.postcodes.io/outcodes/${pc}`;
+    const res = await fetch(url);
+    if (res.ok) {
+      const j = (await res.json()).result;
+      if (j && j.latitude != null) return { lat: j.latitude, lon: j.longitude, label };
+    }
+    if (res.status === 404 && !DISTRICTS[outward]) throw new Error("We could not find that postcode.");
+  } catch (e) {
+    if (e.message.startsWith("We could")) throw e;
+  }
+  // offline fallback: the centre of the forecourts in that postcode district
+  if (DISTRICTS[outward]) return { lat: DISTRICTS[outward][0], lon: DISTRICTS[outward][1], label: outward + " (approximate)" };
+  throw new Error("We could not find that postcode.");
+}
+function nearby(loc) {
+  const withDist = ST.map(s => ({ ...s, dist: haversineMiles(loc.lat, loc.lon, s.lat, s.lon) }));
+  for (const r of [5, 10, 20]) {
+    const near = withDist.filter(s => s.dist <= r);
+    if (near.length >= 3 || r === 20) return { radius: r, list: near };
+  }
+}
+function render() {
+  const { loc, radius, list } = current;
+  const res = $("results"), sum = $("summary"), ol = $("station-list");
+  res.hidden = false;
+  if (!list.length) { sum.textContent = "There are no forecourts reporting prices within 20 miles of " + loc.label + "."; ol.replaceChildren(); return; }
+  const byPrice = [...list].sort((a, b) => a.price - b.price || a.dist - b.dist);
+  const open = byPrice.filter(s => !s.members);          // Costco sells only to members
+  const pool = open.length ? open : byPrice;
+  const cheapest = pool[0], nearest = [...pool].sort((a, b) => a.dist - b.dist)[0];
+  sum.replaceChildren();
+  const add = (t, strong) => { const n = strong ? document.createElement("strong") : document.createTextNode(t); if (strong) n.textContent = t; sum.appendChild(n); };
+  add(`Within ${radius} miles of ${loc.label}, the cheapest petrol is `);
+  add(`${fmtP(cheapest.price)} at ${cheapest.name}`, true);
+  add(`, ${cheapest.dist.toFixed(1)} miles away. `);
+  if (nearest === cheapest || nearest.price - cheapest.price < 0.5) add("Your nearest forecourt is as cheap as it gets. ");
+  else {
+    add(`Your nearest forecourt, ${nearest.name}, charges ${fmtP(nearest.price)}, so filling up at the cheapest instead saves `);
+    add(fmtGBP((nearest.price - cheapest.price) * TANK / 100) + " on a 55-litre tank", true);
+    add(". ");
+  }
+  const members = byPrice.find(s => s.members);
+  if (members && members.price < cheapest.price) add(`Costco, which is open to members only, charges ${fmtP(members.price)}.`);
+  const shown = (sortBy === "price" ? byPrice : [...list].sort((a, b) => a.dist - b.dist)).slice(0, 10);
+  ol.replaceChildren(...shown.map(s => {
+    const li = document.createElement("li");
+    const left = document.createElement("div");
+    const pr = document.createElement("div"); pr.className = "st-price" + (s === cheapest ? " best" : ""); pr.textContent = fmtP(s.price);
+    const df = document.createElement("div"); df.className = "st-diff"; df.textContent = fmtSigned(s.price - UK) + " vs UK";
+    left.append(pr, df);
+    const right = document.createElement("div");
+    const nm = document.createElement("div"); nm.className = "st-name"; nm.textContent = s.name;
+    const meta = document.createElement("div"); meta.className = "st-meta";
+    meta.textContent = `${titleCase(s.brand)} · ${s.dist.toFixed(1)} mi · updated ${fmtDay(parseDay("2026-" + s.updated))}`;
+    right.append(nm, meta);
+    if (s.supermarket || s.motorway || s.members) {
+      const b = document.createElement("div");
+      [[s.supermarket, "Supermarket"], [s.motorway, "Motorway"], [s.members, "Members only"]].forEach(([on, t]) => {
+        if (on) { const sp = document.createElement("span"); sp.className = "badge"; sp.textContent = t; b.appendChild(sp); }
+      });
+      right.appendChild(b);
+    }
+    li.append(left, right);
+    return li;
+  }));
+}
+async function search(loc) {
+  const n = nearby(loc);
+  current = { loc, ...n };
+  $("status").textContent = `${n.list.length} forecourts within ${n.radius} miles. Prices as at ${F.as_at_long}.`;
+  render();
+}
+$("pc-form").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  $("status").textContent = "Searching…";
+  try { await search(await locate($("pc").value)); }
+  catch (e) { $("status").textContent = e.message; $("results").hidden = true; }
+});
+$("geo").addEventListener("click", () => {
+  if (!navigator.geolocation) { $("status").textContent = "Location is not available on this device."; return; }
+  $("status").textContent = "Finding your location…";
+  navigator.geolocation.getCurrentPosition(
+    p => search({ lat: p.coords.latitude, lon: p.coords.longitude, label: "your location" }),
+    () => { $("status").textContent = "We could not get your location. Try a postcode instead."; },
+    { timeout: 10000, maximumAge: 600000 });
+});
+document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
+  sortBy = b.dataset.sort;
+  document.querySelectorAll(".seg button").forEach(x => x.setAttribute("aria-pressed", x === b));
+  if (current) render();
+}));
+
+/* ---------- render and re-render on resize or theme change ---------- */
+const drawAll = () => { drawLine(); drawBrands(); drawMap(); };
+let lastW = 0;
+new ResizeObserver(() => {
+  const w = document.querySelector(".wrap").clientWidth;
+  if (Math.abs(w - lastW) > 8) { lastW = w; drawAll(); }
+}).observe(document.querySelector(".wrap"));
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", drawAll);
+</script>
+</body>
+</html>

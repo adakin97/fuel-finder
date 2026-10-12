@@ -1,0 +1,230 @@
+{
+ "cleaning": {
+  "raw_rows": 347612,
+  "pre_2026_rows": 4,
+  "duplicate_rows": 32,
+  "outlier_rows": 127,
+  "clean_rows": 347449,
+  "coords_flipped": 92,
+  "coords_to_district": 53,
+  "coords_dropped": 12
+ },
+ "as_at": "2026-10-01",
+ "stations_now": 7765,
+ "uk_start": 132.18526429959164,
+ "uk_now": 174.6840388564771,
+ "rise_p": 42.49877455688545,
+ "rise_pct": 0.32150916958916076,
+ "mean_1mar": 132.93988532939562,
+ "mean_31mar": 153.66467480904296,
+ "spring_peak": 159.62306982651958,
+ "spring_peak_date": "2026-05-27",
+ "summer_low": 150.37311760195416,
+ "summer_low_date": "2026-07-05",
+ "tank_start": 72.7018953647754,
+ "tank_now": 96.0762213710624,
+ "sm_now": 171.40231127855236,
+ "other_now": 174.63414981918388,
+ "mw_now": 189.5291922227388,
+ "sm_start": 128.77106242078406,
+ "other_start": 131.68490114312974,
+ "p10_now": 169.899993896484,
+ "p90_now": 178.899993896484,
+ "share_with_rival": 0.9298132646490663,
+ "local_gap_median": 2.199996948242017,
+ "share_gap_5p": 0.2882271468144044,
+ "share_gap_10p": 0.06551246537396122,
+ "ni_now": 167.63020245234136,
+ "gb_road_now": 174.7350401067332,
+ "cheapest_areas": [
+  {
+   "area": "BT",
+   "n": 480,
+   "mean": 167.6,
+   "name": "Northern Ireland"
+  },
+  {
+   "area": "WF",
+   "n": 71,
+   "mean": 171.1,
+   "name": "Wakefield"
+  },
+  {
+   "area": "HG",
+   "n": 20,
+   "mean": 171.2,
+   "name": "Harrogate"
+  },
+  {
+   "area": "HD",
+   "n": 28,
+   "mean": 171.6,
+   "name": "Huddersfield"
+  },
+  {
+   "area": "TQ",
+   "n": 42,
+   "mean": 171.9,
+   "name": "Torquay"
+  },
+  {
+   "area": "WN",
+   "n": 31,
+   "mean": 172.1,
+   "name": "Wigan"
+  }
+ ],
+ "dearest_areas": [
+  {
+   "area": "BH",
+   "n": 61,
+   "mean": 176.7,
+   "name": "Bournemouth"
+  },
+  {
+   "area": "IV",
+   "n": 57,
+   "mean": 176.9,
+   "name": "Inverness"
+  },
+  {
+   "area": "TF",
+   "n": 25,
+   "mean": 177.1,
+   "name": "Telford"
+  },
+  {
+   "area": "PH",
+   "n": 39,
+   "mean": 177.1,
+   "name": "Perth"
+  },
+  {
+   "area": "PO",
+   "n": 78,
+   "mean": 177.1,
+   "name": "Portsmouth"
+  },
+  {
+   "area": "RG",
+   "n": 89,
+   "mean": 177.3,
+   "name": "Reading"
+  }
+ ],
+ "brands": [
+  {
+   "brand": "TESCO",
+   "n": 494.0,
+   "mean": 172.7,
+   "vs_uk": -1.98
+  },
+  {
+   "brand": "ASDA",
+   "n": 311.0,
+   "mean": 172.83,
+   "vs_uk": -1.85
+  },
+  {
+   "brand": "JET",
+   "n": 257.0,
+   "mean": 173.2,
+   "vs_uk": -1.48
+  },
+  {
+   "brand": "MORRISONS",
+   "n": 340.0,
+   "mean": 173.25,
+   "vs_uk": -1.43
+  },
+  {
+   "brand": "SAINSBURY'S",
+   "n": 307.0,
+   "mean": 173.88,
+   "vs_uk": -0.8
+  },
+  {
+   "brand": "MURCO",
+   "n": 122.0,
+   "mean": 174.01,
+   "vs_uk": -0.67
+  },
+  {
+   "brand": "TEXACO",
+   "n": 412.0,
+   "mean": 174.1,
+   "vs_uk": -0.59
+  },
+  {
+   "brand": "EG ON THE MOVE",
+   "n": 148.0,
+   "mean": 174.39,
+   "vs_uk": -0.3
+  },
+  {
+   "brand": "GULF",
+   "n": 223.0,
+   "mean": 175.05,
+   "vs_uk": 0.37
+  },
+  {
+   "brand": "ESSO",
+   "n": 1331.0,
+   "mean": 175.25,
+   "vs_uk": 0.57
+  },
+  {
+   "brand": "ASDA EXPRESS",
+   "n": 83.0,
+   "mean": 175.88,
+   "vs_uk": 1.19
+  },
+  {
+   "brand": "BP",
+   "n": 758.0,
+   "mean": 176.01,
+   "vs_uk": 1.33
+  },
+  {
+   "brand": "SHELL",
+   "n": 762.0,
+   "mean": 176.61,
+   "vs_uk": 1.92
+  },
+  {
+   "brand": "MOTORWAY SERVICES",
+   "n": 212.0,
+   "mean": 189.53,
+   "vs_uk": 14.85
+  }
+ ],
+ "monthly": {
+  "2026-02": 132.3,
+  "2026-03": 143.3,
+  "2026-04": 157.4,
+  "2026-05": 158.5,
+  "2026-06": 155.0,
+  "2026-07": 153.5,
+  "2026-08": 161.4,
+  "2026-09": 170.0,
+  "2026-10": 174.7
+ },
+ "mw_median": 196.899993896484,
+ "road_median": 174.899993896484,
+ "cheapest_station": [
+  {
+   "name": "Solo 24 HR",
+   "brand": "SOLO",
+   "postcode": "BT80 8DR",
+   "price": 154.899993896484
+  }
+ ],
+ "dearest_station": [
+  {
+   "name": "Thorn House Filling Station",
+   "brand": "UNBRANDED",
+   "postcode": "CA10 1BL",
+   "price": 230.0
+  }
+ ]
+}
