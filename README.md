@@ -44,4 +44,4 @@ Fuel Finder, Department for Energy Security and Net Zero, Open Government Licenc
 
 ## AI use
 
-Built with Claude Code (Anthropic, Claude Opus 5.5) at my direction. It wrote all of the code, the page copy and this README. A second set of independent AI reviewers then checked the build. They found a misleading news line, a coordinate fix that moved correctly placed forecourts, stale prices in the tool and touch tooltips that vanished; all were fixed. The submission's commentary has the full breakdown.
+Built working with Claude Code (Anthropic, Claude Opus 5.5). I gave it the brief, with the mobile app as the main constraint. It profiled and cleaned the data, ran the analysis, proposed the angle and the postcode tool, and wrote the code. A separate set of AI reviewers then checked the work, and the problems they found, including a misleading news line and stale prices in the tool, were fixed. I reviewed the final page, figures and method.
